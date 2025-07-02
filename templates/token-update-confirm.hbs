@@ -1,0 +1,55 @@
+<div class="actor-token-update-dialog">
+  <div class="dialog-content">
+    <div class="confirmation-message">
+      <p>Update the prototype token for <strong>{{actor.name}}</strong>?</p>
+    </div>
+    
+    <div class="token-comparison">
+      <div class="token-preview">
+        <div class="token-label">Current Token</div>
+        <img src="{{currentTokenSrc}}" class="token-image" alt="Current token" />
+      </div>
+      <div class="token-preview">
+        <div class="token-label">New Token</div>
+        <img src="{{newTokenSrc}}" class="token-image" alt="New token" />
+      </div>
+    </div>
+    
+    <div class="options">
+      <label class="checkbox-label">
+        <input type="checkbox" id="update-actor-image" {{#if updateActorImageDefault}}checked{{/if}} /> 
+        Also update actor portrait image
+      </label>
+    </div>
+    
+    <div class="token-details">
+      <div class="detail-row">
+        <strong>Token:</strong> {{displayName}}
+      </div>
+      {{#if tokenSource}}
+      <div class="detail-row">
+        <strong>Source:</strong> 
+        {{#if isCloudToken}}
+          Cloud{{#if tier}} ({{tier}}){{/if}}
+        {{else}}
+          Local
+        {{/if}}
+      </div>
+      {{/if}}
+      {{#if tokenSize}}
+      <div class="detail-row">
+        <strong>Size:</strong> {{tokenSize.gridWidth}}×{{tokenSize.gridHeight}} grid{{#if hasScale}} @ {{tokenSize.scale}}x scale{{/if}}
+      </div>
+      {{/if}}
+    </div>
+    
+    <div class="dialog-buttons">
+      <button type="button" class="cancel-btn" data-action="cancel">
+        <i class="fas fa-times"></i> Cancel
+      </button>
+      <button type="button" class="confirm-btn" data-action="confirm">
+        <i class="fas fa-check"></i> Update Token
+      </button>
+    </div>
+  </div>
+</div> 

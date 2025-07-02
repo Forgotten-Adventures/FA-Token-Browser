@@ -1,0 +1,80 @@
+<div class="token-browser">
+  <div class="token-browser-header">
+    <div class="token-browser-controls">
+      <div class="token-browser-stats">
+        <span>{{#if hasMore}}{{images.length}} of {{totalImages}} tokens loaded{{else}}{{totalImages}} tokens found{{/if}}</span>
+      </div>
+      <div class="token-browser-search">
+      <div class="search-input-wrapper">
+        <i class="fas fa-search search-icon"></i>
+        <input type="text" id="token-search" placeholder="Search tokens... (e.g., 'bandit OR pirate sword', 'large fiend', 'creatures NOT dragon', 'cached premium' etc.)" autocomplete="off" />
+        <button type="button" class="clear-search" title="Clear search">
+          <i class="fas fa-times"></i>
+        </button>
+      </div>
+    </div>
+      <div class="thumbnail-size-selector">
+        <label>Size:</label>
+        <div class="size-icons">
+          <button class="size-btn" data-size="small" title="Small thumbnails">
+            <i class="fas fa-th"></i>
+          </button>
+          <button class="size-btn active" data-size="medium" title="Medium thumbnails">
+            <i class="fas fa-th-large"></i>
+          </button>
+          <button class="size-btn" data-size="large" title="Large thumbnails">
+            <i class="fas fa-stop"></i>
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+  
+  {{#if images.length}}
+    <div class="token-grid" data-thumbnail-size="medium">
+      {{#each images}}
+        <div class="token-item {{#if (eq source 'cloud')}}cloud-token{{/if}}" data-path="{{path}}" data-filename="{{filename}}" data-source="{{source}}" {{#if tier}}data-tier="{{tier}}"{{/if}} {{#if (eq source 'cloud')}}draggable="false"{{else}}draggable="true"{{/if}}>
+          <div class="token-thumbnail">
+            <img src="{{url}}" alt="{{filename}}" />
+            {{#if variant}}
+              <div class="token-variant">{{variant}}</div>
+            {{/if}}
+          </div>
+          <div class="token-info">
+            <span class="token-name" title="{{displayName}}">{{displayName}}</span>
+            <div class="token-details">
+              {{#if size}}<span class="token-size">{{size}}</span>{{/if}}
+              {{#if scale}}<span class="token-scale">{{scale}}</span>{{/if}}
+              {{#if creatureType}}<span class="token-creature-type">{{creatureType}}</span>{{/if}}
+            </div>
+          </div>
+          {{#if (eq source 'cloud')}}
+            {{#if isCached}}
+              <div class="token-status-icon cached-cloud" title="Cloud token (cached locally)">
+                <i class="fas fa-cloud-check"></i>
+              </div>
+            {{else if (eq tier 'premium')}}
+              <div class="token-status-icon premium-cloud" title="Premium cloud token">
+                <i class="fas fa-cloud-plus"></i>
+              </div>
+            {{else}}
+              <div class="token-status-icon free-cloud" title="Free cloud token">
+                <i class="fas fa-cloud"></i>
+              </div>
+            {{/if}}
+          {{else}}
+            <div class="token-status-icon local-storage" title="Local storage">
+              <i class="fas fa-folder"></i>
+            </div>
+          {{/if}}
+        </div>
+      {{/each}}
+    </div>
+  {{else}}
+    <div class="token-empty-state">
+      <p><em>No images found in the selected folder.</em></p>
+      <p><strong>Current folder:</strong> "{{customTokenFolder}}"</p>
+      <p>Go to <strong>Game Settings > Module Settings</strong> to configure a token folder.</p>
+    </div>
+  {{/if}}
+</div> 

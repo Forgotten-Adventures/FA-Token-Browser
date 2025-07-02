@@ -1,0 +1,1055 @@
+/* Token Browser Styles */
+
+/* Override ApplicationV2 window styling for better integration */
+
+#token-browser-app {
+ /* background-color: rgba(10, 9, 17, 0.47); */
+  border-color: rgb(255 255 255 / 10%);
+}
+
+/* Only apply minimum size when window is not minimized */
+#token-browser-app:not(.minimized, .minimizing, .maximizing) {
+  min-width: 455px;
+  min-height: 455px;
+}
+
+ #token-browser-app .window-header {
+  border-color: rgb(255 255 255 / 10%);
+  background: rgba(10, 9, 17, 0.85);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+#token-browser-app .header-content {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  flex: 1;
+}
+
+#token-browser-app .window-title {
+  color: var(--color-text-light-6);
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin: 0;
+  white-space: nowrap;
+}
+
+#token-browser-app .window-title i {
+  color: #4CAF50;
+  font-size: 1.1em;
+}
+
+#token-browser-app .window-title .title-cloud-icon {
+  color: rgba(93, 169, 253, 0.6);
+  font-size: 0.85em;
+  margin: 0 0.15rem;
+}
+
+#token-browser-app .window-title .title-stats {
+  font-weight: normal;
+  opacity: 0.9;
+}
+
+/* Custom FA icon styling */
+#token-browser-app .custom-fa-icon {
+  width: 30px;
+  height: 30px;
+}
+
+/* Header Patreon auth styling */
+#token-browser-app .header-patreon-auth {
+  margin-left: auto;
+}
+
+#token-browser-app .header-patreon-auth .patreon-connect-button {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.2rem 0.8rem;
+  background: linear-gradient(135deg, #ff424d, #ff6b35);
+  border: none;
+  border-radius: 4px;
+  color: white;
+  font-weight: 500;
+  font-size: 0.9em;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  box-shadow: 0 1px 3px rgba(255, 66, 77, 0.3);
+}
+
+#token-browser-app .header-patreon-auth .patreon-connect-button:hover {
+  background: linear-gradient(135deg, #e63946, #f77f00);
+  box-shadow: 0 2px 6px rgba(255, 66, 77, 0.4);
+  transform: translateY(-1px);
+}
+
+#token-browser-app .header-patreon-auth .auth-status-display {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.4rem 0.8rem;
+  background: rgba(34, 197, 94, 0.1);
+  border: 1px solid rgba(34, 197, 94, 0.3);
+  border-radius: 4px;
+  color: rgb(34, 197, 94);
+  font-size: 0.8em;
+  font-weight: 500;
+}
+
+#token-browser-app .window-content {
+  padding: 0;
+  backdrop-filter: blur(5px);
+}
+
+.token-browser {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+.token-browser-header {
+  display: flex;
+  gap: 0.75rem;
+  padding: 0.6rem;
+  border-bottom: 1px solid var(--color-border-dark-tertiary);
+}
+
+.auth-status-display[data-disconnect-handler="true"]:hover {
+  background: rgba(34, 197, 94, 0.15);
+  border-color: rgba(34, 197, 94, 0.4);
+  transform: translateY(-1px);
+  transition: all 0.2s ease;
+}
+
+.token-browser-search {
+  display: flex;
+  align-items: center;
+  width: 50%;
+}
+
+.search-input-wrapper {
+  position: relative;
+  flex: 1;
+  max-width: 500px;
+  margin: 0 auto;
+}
+
+.search-input-wrapper .search-icon {
+  position: absolute;
+  left: 0.75rem;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--color-text-light-6);
+  font-size: 0.9em;
+  pointer-events: none;
+}
+
+#token-search {
+  width: 100%;
+  padding: 0.5rem 2.5rem 0.5rem 2.25rem;
+  background: var(--color-bg-btn);
+  border: 1px solid var(--color-border-dark-secondary);
+  border-radius: 4px;
+  color: var(--color-text-light-1);
+  font-size: 0.9em;
+  transition: all 0.2s ease;
+  min-height: 36px;
+  outline: none;
+}
+
+#token-search:focus {
+  outline: none;
+  box-shadow: 0 0 0 2px rgba(109, 109, 109, 0.378);
+}
+
+#token-search::placeholder {
+  color: var(--color-text-light-6);
+  opacity: 0.8;
+}
+
+.clear-search {
+  position: absolute;
+  right: 0.5rem;
+  top: 50%;
+  transform: translateY(-50%);
+  background: none;
+  border: none;
+  color: var(--color-text-light-6);
+  cursor: pointer;
+  padding: 0.25rem;
+  border-radius: 2px;
+  transition: all 0.2s ease;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.search-input-wrapper.has-text .clear-search {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.clear-search:hover {
+  color: var(--color-text-light-1);
+  background: var(--color-bg-option-active);
+}
+
+.token-browser-controls {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+}
+
+.token-browser-stats {
+  color: var(--color-text-light-6);
+  width: 25%;
+  font-size: 0.9em;
+}
+
+.thumbnail-size-selector {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  width: 25%;
+  justify-content: flex-end;
+}
+
+.thumbnail-size-selector label {
+  color: var(--color-text-light-6);
+  font-size: 0.9em;
+  white-space: nowrap;
+}
+
+.size-icons {
+  display: flex;
+}
+
+.size-btn {
+  border: none;
+  color: var(--color-text-light-6);
+  transition: all 0.2s ease;
+  background-color: transparent;
+}
+
+.size-btn:hover {
+  color: var(--color-text-light-1);
+  outline: none; 
+  background-color: transparent;
+}
+
+.size-btn:focus {
+  color: var(--color-text-light-1);
+  outline: none; 
+  background-color: transparent;
+}
+
+.size-btn.active {
+  color: white;
+  box-shadow: none;
+  outline: none;
+}
+
+.size-btn i {
+  font-size: 0.9em;
+}
+
+/* Grid Layout with Size Variants */
+.token-grid {
+  display: grid;
+  gap: 0.5rem;
+  padding: 0.5rem 0.6em;
+  overflow-y: auto;
+  flex: 1;
+  /* Performance optimization: Grid transitions don't work reliably, so just transition opacity and transform */
+  transition: opacity 0.2s ease 0.2s, transform 0.1s ease 0.2s;
+  align-content: start; /* Prevent stretching when few items */
+  
+  /* Performance optimizations */
+  contain: layout style paint;
+  will-change: scroll-position;
+  transform: translateZ(0); /* Force hardware acceleration */
+}
+
+/* Small thumbnails (80px) */
+.token-grid[data-thumbnail-size="small"] {
+  grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+  grid-auto-rows: min-content; /* Fixed height rows */
+}
+
+.token-grid[data-thumbnail-size="small"] .token-thumbnail {
+  width: 80px;
+  height: 80px;
+}
+
+.token-grid[data-thumbnail-size="small"] .token-name {
+  font-size: 0.85em;
+}
+
+.token-grid[data-thumbnail-size="small"] .token-details {
+  font-size: 0.7em;
+}
+
+.token-grid[data-thumbnail-size="small"] .token-info {
+  height: 3em;
+}
+
+/* Medium thumbnails (96px) */
+.token-grid[data-thumbnail-size="medium"] {
+  grid-template-columns: repeat(auto-fill, minmax(116px, 1fr));
+  grid-auto-rows: min-content; /* Fixed height rows */
+}
+
+.token-grid[data-thumbnail-size="medium"] .token-thumbnail {
+  width: 96px;
+  height: 96px;
+}
+
+.token-grid[data-thumbnail-size="medium"] .token-name {
+  font-size: 0.90em;
+}
+
+.token-grid[data-thumbnail-size="medium"] .token-details {
+  font-size: 0.75em;
+}
+
+/* Large thumbnails (128px) */
+.token-grid[data-thumbnail-size="large"] {
+  grid-template-columns: repeat(auto-fill, minmax(148px, 1fr));
+  grid-auto-rows: min-content; /* Fixed height rows */
+}
+
+.token-grid[data-thumbnail-size="large"] .token-thumbnail {
+  width: 128px;
+  height: 128px;
+}
+
+/* Token Items */
+.token-item {
+  position: relative;
+  cursor: pointer;
+  border-radius: 4px;
+  padding: 0.8rem;
+  overflow: hidden;
+  /* Performance optimization: Only transition specific properties that actually change */
+  transition: transform 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
+  background: rgb(115 115 115 / 35%);
+  border: 1px solid rgba(255, 255, 255, 0.103);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  animation: fadeInUp 0.3s ease-out;
+  height: fit-content;
+  
+  /* Performance optimizations */
+  contain: layout style;
+  backface-visibility: hidden;
+}
+
+.token-item:hover {
+  border-color: rgba(255, 255, 255, 0.33);
+  transform: translateY(-2px) translateZ(0);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+  will-change: transform;
+}
+
+/* Drag and Drop States */
+.token-item[draggable="true"] {
+  cursor: grab !important;
+}
+
+.token-item.dragging {
+  cursor: grabbing !important;
+  /* Removed opacity and scale effects - visual feedback now handled by floating preview */
+}
+
+/* Thumbnails */
+.token-thumbnail {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  /* Performance optimization: Only transition specific properties that actually change */
+  /* Add delay so thumbnails transition after grid settles */
+  transition: width 0.2s ease 0.05s, height 0.2s ease 0.05s, transform 0.15s ease;
+}
+
+/* Performance mode: Disable transitions for large token counts */
+.token-grid.performance-mode .token-thumbnail {
+  transition: none !important;
+}
+
+.token-grid.performance-mode .token-item {
+  transition: none !important;
+}
+
+.token-grid.performance-mode .token-name {
+  transition: none !important;
+}
+
+.token-thumbnail img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  /* Transition removed for performance - not needed for current hover effects */
+}
+
+/* Token Info */
+.token-info {
+  margin-bottom: -0.5em;
+  padding-top: 0.8em;
+  text-align: center;
+  width: 110%;
+  height: 3.5em; /* Changed to min-height to accommodate token details */
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-start;
+}
+
+.token-name {
+  display: block;
+  font-size: 1em;
+  color: var(--color-text-light-6);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  line-height: 1.2;
+  height: 1.2em; /* Single line height */
+  width: 100%;
+  text-align: center;
+  /* Performance optimization: Only transition color */
+  transition: color 0.15s ease;
+}
+
+.token-item:hover .token-name {
+  color: var(--color-text-light-1);
+}
+
+/* Token Variant (bottom right corner) */
+.token-variant {
+  position: absolute;
+  bottom: 0.25rem;
+  right: 0.0rem;
+  color: rgb(147 147 147);
+  font-size: 0.8em;
+  font-weight: 400;
+  z-index: 3;
+}
+
+/* Token Details (size, scale, creature type) */
+.token-details {
+  margin-top: 0.3rem;
+  display: flex;
+  justify-content: center;
+  font-size: 0.8em;
+  line-height: 1.1;
+  width: 115%;
+}
+
+.token-size, .token-scale, .token-creature-type {
+  color: rgb(135 135 135 / 80%);
+  padding: 0.1rem 0.2rem;
+  font-weight: 500;
+  overflow: hidden;
+  white-space: nowrap;
+  flex-shrink: 1;
+  min-width: 0;
+}
+
+.token-creature-type {
+  color: rgb(215 171 0 / 65%);
+  text-overflow: clip;
+}
+
+.token-scale {
+  color: rgba(34, 197, 94, 0.5);
+}
+
+
+.cloud-token:hover {
+  border-color: rgba(74, 158, 255, 0.6);
+  box-shadow: 0 4px 8px rgba(74, 158, 255, 0.2);
+}
+
+/* Token Status Icons */
+.token-status-icon {
+  position: absolute;
+  top: 0.25rem;
+  right: 0.25rem;
+  width: 1.25rem;
+  height: 1.25rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.75em;
+  z-index: 2;
+}
+
+.token-status-icon.local-storage {
+  color: rgba(128, 128, 128, 0.7);
+}
+
+.token-status-icon.free-cloud {
+  color: rgba(93, 169, 253, 0.4);
+}
+
+.token-status-icon.premium-cloud {
+  color: rgba(93, 169, 253, 0.6);
+}
+
+.token-status-icon.cached-cloud {
+  color: rgba(128, 128, 128, 0.7);
+}
+
+/* Empty State */
+.token-empty-state {
+  text-align: center;
+  padding: 2rem;
+  color: var(--color-text-light-6);
+  background: var(--color-bg-option);
+  border-radius: 6px;
+  border: 1px dashed var(--color-border-dark-tertiary);
+}
+
+.token-empty-state p {
+  margin: 0.5rem 0;
+}
+
+/* Empty Search State */
+.no-search-results {
+  display: none;
+  margin-top: 2rem;
+}
+
+.empty-search-state {
+  text-align: center;
+  padding: 3rem 2rem;
+  color: var(--color-text-light-6);
+  background: var(--color-bg-option);
+  border-radius: 6px;
+  border: 1px dashed var(--color-border-dark-tertiary);
+}
+
+.empty-search-state i {
+  font-size: 2.5em;
+  margin-bottom: 1rem;
+  opacity: 0.5;
+}
+
+.empty-search-state p {
+  margin: 0.5rem 0;
+  font-size: 0.95em;
+}
+
+.empty-search-state strong {
+  color: var(--color-text-light-1);
+}
+
+/* Responsive Design */
+@media (max-width: 600px) {
+  .token-browser-header {
+    gap: 0.5rem;
+  }
+
+  /* Header responsive layout */
+  #token-browser-app .window-header {
+    padding: 0.5rem;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0.5rem;
+  }
+
+  #token-browser-app .header-content {
+    flex-direction: column;
+    gap: 0.5rem;
+    align-items: center;
+  }
+
+  #token-browser-app .custom-fa-icon {
+    width: 16px;
+    height: 16px;
+    margin-right: 0.3rem;
+  }
+
+  #token-browser-app .header-patreon-auth {
+    margin-left: 0;
+    width: 100%;
+    display: flex;
+    justify-content: center;
+  }
+
+  
+  .search-input-wrapper {
+    max-width: none;
+  }
+  
+  #token-search {
+    font-size: 0.85em;
+    padding: 0.45rem 2.25rem 0.45rem 2rem;
+  }
+  
+  #token-search::placeholder {
+    font-size: 0.8em;
+  }
+  
+  .token-browser-controls {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.5rem;
+  }
+
+  .token-browser-stats {
+    font-size: 0.8em;
+  }
+  
+  .token-grid[data-thumbnail-size="small"] {
+    grid-template-columns: repeat(auto-fill, minmax(90px, 1fr));
+    gap: 0.75rem;
+  }
+  
+  .token-grid[data-thumbnail-size="medium"] {
+    grid-template-columns: repeat(auto-fill, minmax(104px, 1fr));
+    gap: 0.75rem;
+  }
+  
+  .token-grid[data-thumbnail-size="large"] {
+    grid-template-columns: repeat(auto-fill, minmax(122px, 1fr));
+    gap: 0.75rem;
+  }
+  
+  .token-grid[data-thumbnail-size="small"] .token-thumbnail {
+    width: 70px;
+    height: 70px;
+  }
+  
+  .token-grid[data-thumbnail-size="medium"] .token-thumbnail {
+    width: 84px;
+    height: 84px;
+  }
+  
+  .token-grid[data-thumbnail-size="large"] .token-thumbnail {
+    width: 112px;
+    height: 112px;
+  }
+  
+  /* Adjust token details for mobile */
+  .token-details {
+    gap: 0.2rem;
+  }
+  
+  .token-size,
+  .token-scale,
+  .token-creature-type {
+    font-size: 0.65em;
+    padding: 0.05rem 0.3rem;
+  }
+  
+  .token-variant {
+    font-size: 0.65em;
+    padding: 0.1rem 0.25rem;
+  }
+}
+
+/* Lazy Loading Indicator */
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+/* Smooth appearance for new items */
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Hover preview functionality handled by JavaScript event listeners */
+
+/* Token Hover Preview */
+.token-hover-preview {
+  position: fixed;
+  z-index: 9999;
+  background: rgba(61, 60, 62, 0.606);
+  border: 2px solid var(--color-border-highlight-alt);
+  border-radius: 8px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+  padding: 1rem;
+  max-width: min(600px, calc(100vw - 40px));
+  max-height: calc(100vh - 40px);
+  opacity: 0;
+  transition: opacity 0.25s ease;
+  pointer-events: none;
+  backdrop-filter: blur(5px);
+  overflow: hidden;
+}
+
+.token-hover-preview.visible {
+  opacity: 1;
+}
+
+.token-hover-preview img {
+  width: auto;
+  height: auto;
+  max-width: 100%;
+  max-height: 600px;
+  border-radius: 4px;
+  border: 1px solid var(--color-border-dark-secondary);
+  background: var(--color-bg-btn);
+  display: block;
+  margin: 0 auto;
+  transition: opacity 0.3s ease;
+}
+
+.preview-info {
+  margin-top: 0.75rem;
+  text-align: center;
+}
+
+.preview-filename {
+  font-weight: bold;
+  color: var(--color-text-light-1);
+  font-size: 0.9em;
+  margin-bottom: 0.25rem;
+  word-break: break-word;
+  line-height: 1.3;
+}
+
+.preview-path {
+  color: var(--color-text-light-6);
+  font-size: 0.75em;
+  opacity: 0.8;
+  word-break: break-all;
+  line-height: 1.2;
+}
+
+.preview-dimensions {
+  color: var(--color-text-light-5);
+  font-size: 0.7em;
+  margin-top: 0.25rem;
+  padding-top: 0.25rem;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  text-align: center;
+  font-family: monospace;
+}
+
+/* Responsive preview sizing */
+@media (max-width: 600px) {
+  .token-hover-preview {
+    max-width: 340px;
+    padding: 0.75rem;
+  }
+  
+  .token-hover-preview img {
+    max-width: 260px;
+  }
+  
+  .preview-filename {
+    font-size: 0.85em;
+  }
+  
+  .preview-path {
+    font-size: 0.7em;
+  }
+}
+
+/* Image Skeleton Loading */
+.image-skeleton {
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(135deg, rgba(80, 80, 80, 0.8), rgba(90, 90, 90, 0.8));
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  /*transition: opacity 0.3s ease; */
+}
+
+.skeleton-shimmer {
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(255, 255, 255, 0.1),
+    transparent
+  );
+  animation: shimmer 2s infinite;
+}
+
+.skeleton-icon {
+  color: rgba(255, 255, 255, 0.3);
+  font-size: 1.5em;
+  z-index: 1;
+}
+
+.skeleton-error-state {
+  background: rgba(120, 50, 50, 0.8);
+}
+
+.skeleton-error {
+  color: rgba(255, 100, 100, 0.8);
+  font-size: 1.2em;
+}
+
+@keyframes shimmer {
+  0% { left: -100%; }
+  100% { left: 100%; }
+}
+
+/* --- Preloading state for drag-ready token items (moved from JS) --- */
+.token-item.preloading {
+  position: relative;
+  opacity: 0.8;
+  pointer-events: none;
+  cursor: progress !important; /* Ensure loading cursor shows */
+}
+
+.token-item.preloading::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.2);
+  border-radius: 4px;
+  z-index: 1;
+}
+
+.token-item.preloading::after {
+  content: '⟳';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  font-size: 28px;
+  color: #4a9eff;
+  text-shadow: 0 0 6px rgba(74, 158, 255, 0.6);
+  z-index: 2;
+  animation: fa-token-browser-spin 1s linear infinite;
+}
+
+/* Ensure pointer events are blocked for children while preloading */
+.token-item.preloading * {
+  pointer-events: none;
+}
+
+@keyframes fa-token-browser-spin {
+  from { transform: translate(-50%, -50%) rotate(0deg); }
+  to   { transform: translate(-50%, -50%) rotate(360deg); }
+}
+
+/* Actor Drop Target Visual Feedback */
+.actor-drop-target {
+  background-color: rgba(0, 123, 255, 0.2) !important;
+  border: 2px dashed #007bff !important;
+  border-radius: 4px !important;
+  box-shadow: 0 0 8px rgba(0, 123, 255, 0.3) !important;
+  transition: all 0.2s ease !important;
+}
+
+.actor-drop-target:hover {
+  background-color: rgba(0, 123, 255, 0.3) !important;
+  box-shadow: 0 0 12px rgba(0, 123, 255, 0.5) !important;
+}
+
+/* Ensure proper cursor during drag over actors */
+.actor-drop-target * {
+  pointer-events: none !important;
+}
+
+/* Actor Token Update Dialog Styling */
+.actor-token-update-dialog {
+  padding: 0;
+  max-width: 500px;
+  background: rgba(10, 9, 17, 0.85);
+  color: var(--color-text-light-6);
+  border-radius: 8px;
+  border: 1px solid rgb(255 255 255 / 10%);
+  backdrop-filter: blur(5px);
+}
+
+/* Dialog content wrapper */
+.actor-token-update-dialog .dialog-content {
+  padding: 20px;
+}
+
+.actor-token-update-dialog .confirmation-message {
+  margin-bottom: 20px;
+  text-align: center;
+  color: var(--color-text-light-1);
+}
+
+.actor-token-update-dialog .confirmation-message p {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 500;
+  word-wrap: break-word;
+  overflow-wrap: break-word;
+}
+
+.actor-token-update-dialog .token-comparison {
+  display: flex;
+  gap: 20px;
+  margin-bottom: 20px;
+  justify-content: center;
+  background: rgb(115 115 115 / 35%);
+  padding: 20px;
+  border-radius: 6px;
+  border: 1px solid rgba(255, 255, 255, 0.103);
+}
+
+.actor-token-update-dialog .token-preview {
+  text-align: center;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.actor-token-update-dialog .token-label {
+  margin-bottom: 12px;
+  font-weight: 600;
+  font-size: 14px;
+  color: var(--color-text-light-1);
+}
+
+.actor-token-update-dialog .token-image {
+  width: 128px;
+  height: 128px;
+  border-radius: 4px;
+  object-fit: cover;
+}
+
+.actor-token-update-dialog .options {
+  margin-bottom: 20px;
+  padding: 15px;
+  border-radius: 6px;
+  border: 1px solid rgba(255, 255, 255, 0.103);
+  text-align: center;
+}
+
+.actor-token-update-dialog .checkbox-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  font-size: 14px;
+  color: var(--color-text-light-6);
+  user-select: none;
+}
+
+.actor-token-update-dialog .checkbox-label:hover {
+  color: var(--color-text-light-1);
+}
+
+.actor-token-update-dialog .checkbox-label input[type="checkbox"] {
+  margin: 0;
+  width: 16px;
+  height: 16px;
+  accent-color: var(--color-primary, #0078d4);
+}
+
+.actor-token-update-dialog .token-details {
+  display: contents;
+  font-size: 0.9em;
+  color: var(--color-text-light-6);
+}
+
+.actor-token-update-dialog .detail-row {
+  margin-bottom: 8px;
+  line-height: 1.4;
+  word-wrap: break-word;
+  overflow-wrap: break-word;
+  hyphens: auto;
+}
+
+.actor-token-update-dialog .detail-row:last-child {
+  margin-bottom: 0;
+}
+
+.actor-token-update-dialog .detail-row strong {
+  color: var(--color-text-light-1);
+  display: inline-block;
+  min-width: 50px;
+}
+
+.actor-token-update-dialog .dialog-buttons {
+  display: flex;
+  gap: 15px;
+  justify-content: center;
+  margin-top: 25px;
+  padding-top: 15px;
+  border-top: 1px solid rgba(255, 255, 255, 0.15);
+}
+
+.actor-token-update-dialog .dialog-buttons button {
+  padding: 12px 24px;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  transition: all 0.2s ease;
+  min-width: 120px;
+  justify-content: center;
+}
+
+.actor-token-update-dialog .cancel-btn {
+  background: rgb(115 115 115 / 35%);
+  color: var(--color-text-light-6);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.actor-token-update-dialog .cancel-btn:hover {
+  background: rgb(115 115 115 / 50%);
+  border-color: rgba(255, 255, 255, 0.33);
+  color: var(--color-text-light-1);
+  transform: translateY(-1px);
+}
+
+.actor-token-update-dialog .confirm-btn {
+  background: linear-gradient(135deg, #4CAF50, #45a049);
+  color: white;
+  border: 1px solid rgba(76, 175, 80, 0.3);
+  box-shadow: 0 2px 4px rgba(76, 175, 80, 0.2);
+}
+
+.actor-token-update-dialog .confirm-btn:hover {
+  background: linear-gradient(135deg, #45a049, #3d8b40);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 8px rgba(76, 175, 80, 0.4);
+}
+
+.actor-token-update-dialog .confirm-btn:active,
+.actor-token-update-dialog .cancel-btn:active {
+  transform: translateY(0);
+}
+
+/* Title bar styling to match Token Browser */
+#actor-token-update-dialog .window-header {
+  background: rgba(10, 9, 17, 0.85);
+  border-bottom: 1px solid rgb(255 255 255 / 10%);
+  border-color: rgb(255 255 255 / 10%);
+  color: var(--color-text-light-6);
+}
+
+#actor-token-update-dialog .window-title {
+  color: var(--color-text-light-6);
+  font-weight: 600;
+}
