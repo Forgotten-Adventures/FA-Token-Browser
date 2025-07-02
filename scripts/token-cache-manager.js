@@ -107,52 +107,80 @@ class ForgeURLOptimizer {
   }
 
   /**
-   * Detect Forge account ID by loading the module icon and analyzing its URL
+   * Detect Forge account ID by following redirects to get the final assets URL
    * @returns {Promise<boolean>} True if account ID detected successfully
    * @private
    */
   async _detectForgeAccountId() {
     try {
-      // Create a test image element to load our module icon
+      // Use fetch to follow redirects and get the final URL
+      const iconPath = 'modules/fa-token-browser/images/cropped-FA-Icon-Plain-v2.png';
+      
+      const response = await fetch(iconPath, {
+        method: 'HEAD',
+        redirect: 'follow' // Follow redirects to get final URL
+      });
+      
+      // Get the final URL after redirects
+      const finalURL = response.url;
+      
+      // Pattern: https://assets.forge-vtt.com/{accountId}/modules/fa-token-browser/images/cropped-FA-Icon-Plain-v2.png
+      const match = finalURL.match(/assets\.forge-vtt\.com\/([^\/]+)\//);
+      
+      if (match && match[1]) {
+        this.forgeAccountId = match[1];
+        this.isInitialized = true;
+        console.info(`fa-token-browser | Forge account ID detected from redirect: ${this.forgeAccountId}`);
+        console.info(`fa-token-browser | Original URL: ${iconPath}`);
+        console.info(`fa-token-browser | Final URL: ${finalURL}`);
+        return true;
+      } else {
+        console.warn('fa-token-browser | Failed to extract Forge account ID from final URL:', finalURL);
+        return false;
+      }
+    } catch (error) {
+      console.warn('fa-token-browser | Error detecting Forge account ID via fetch, trying fallback method:', error);
+      
+      // Fallback: Try with image element (original method)
+      try {
+        return await this._detectForgeAccountIdFallback();
+      } catch (fallbackError) {
+        console.error('fa-token-browser | Both Forge account ID detection methods failed:', fallbackError);
+        return false;
+      }
+    }
+  }
+
+  /**
+   * Fallback method for Forge account ID detection using image element
+   * @returns {Promise<boolean>} True if account ID detected successfully
+   * @private
+   */
+  async _detectForgeAccountIdFallback() {
+    return new Promise((resolve) => {
       const testImg = new Image();
       testImg.crossOrigin = "anonymous";
       
-      return new Promise((resolve) => {
-        testImg.onload = () => {
-          try {
-            // Extract the actual resolved URL
-            const resolvedURL = testImg.src;
-            
-            // Pattern: https://assets.forge-vtt.com/{accountId}/modules/fa-token-browser/images/cropped-FA-Icon-Plain-v2.png
-            const match = resolvedURL.match(/assets\.forge-vtt\.com\/([^\/]+)\//);
-            
-            if (match && match[1]) {
-              this.forgeAccountId = match[1];
-              this.isInitialized = true;
-              console.info(`fa-token-browser | Forge account ID detected: ${this.forgeAccountId}`);
-              resolve(true);
-            } else {
-              console.warn('fa-token-browser | Failed to extract Forge account ID from URL:', resolvedURL);
-              resolve(false);
-            }
-          } catch (error) {
-            console.warn('fa-token-browser | Error detecting Forge account ID:', error);
-            resolve(false);
-          }
-        };
-        
-        testImg.onerror = () => {
-          console.warn('fa-token-browser | Failed to load module icon for Forge ID detection');
+      testImg.onload = () => {
+        try {
+          // Note: testImg.src will still be the original URL, not the redirected one
+          // This fallback method is less reliable but kept for compatibility
+          const originalURL = testImg.src;
+          console.warn('fa-token-browser | Using fallback detection method with limited redirect info');
+          resolve(false); // Fallback method can't access redirect URL
+        } catch (error) {
+          console.warn('fa-token-browser | Fallback detection error:', error);
           resolve(false);
-        };
-        
-        // Load the module icon - Foundry will resolve this to the actual Forge URL
-        testImg.src = 'modules/fa-token-browser/images/cropped-FA-Icon-Plain-v2.png';
-      });
-    } catch (error) {
-      console.error('fa-token-browser | Error in Forge account ID detection:', error);
-      return false;
-    }
+        }
+      };
+      
+      testImg.onerror = () => {
+        console.warn('fa-token-browser | Fallback icon load failed');
+        resolve(false);
+      };
+      
+      testImg.src = 'modules/fa-token-browser/images/cropped-FA-Icon-Plain-v2.png';
+    });
   }
 
   /**
