@@ -149,6 +149,11 @@ class ForgeURLOptimizer {
       return cachePath; // Return original path if not optimized
     }
 
+    // Don't double-optimize: check if already an optimized URL
+    if (cachePath.startsWith('https://assets.forge-vtt.com/')) {
+      return cachePath; // Already optimized
+    }
+
     // Convert cache path to direct Forge assets URL
     // Example: "fa-token-browser-cache/file.webp" -> "https://assets.forge-vtt.com/{accountId}/fa-token-browser-cache/file.webp"
     return `https://assets.forge-vtt.com/${this.forgeAccountId}/${cachePath}`;
@@ -196,44 +201,44 @@ class ForgeURLOptimizer {
         return null;
       }
       
-      // Check if user has set a preferred bucket in module settings
-      const preferredBucket = this._getPreferredBucket();
-      if (preferredBucket !== null) {
-        console.info(`fa-token-browser | Using preferred bucket from settings: ${preferredBucket}`);
-        return preferredBucket;
+      // Get user's bucket preference from settings
+      const preferredSetting = game.settings.get('fa-token-browser', 'preferredForgeBucket');
+      
+      // Parse the setting as a bucket index
+      const bucketIndex = parseInt(preferredSetting);
+      
+      if (preferredSetting === 'auto' || isNaN(bucketIndex)) {
+        // Auto mode: prefer shared buckets over "My Assets Library"
+        const sharedBuckets = buckets.filter(bucket => bucket.label.startsWith('Shared Folder:'));
+        
+        if (sharedBuckets.length > 0) {
+          // Use the first shared bucket
+          const sharedBucket = sharedBuckets[0];
+          const autoIndex = buckets.findIndex(b => b.key === sharedBucket.key);
+          console.info(`fa-token-browser | Auto-selected shared bucket: ${sharedBucket.label} (index: ${autoIndex})`);
+          return autoIndex;
+        } else {
+          // Use "My Assets Library" (first bucket)
+          console.info(`fa-token-browser | Auto-selected default bucket: ${buckets[0].label} (index: 0)`);
+          return 0;
+        }
       }
       
-      // Default strategy: Use shared bucket if available, otherwise use "My Assets Library"
-      const sharedBuckets = buckets.filter(bucket => bucket.label.startsWith('Shared Folder:'));
-      
-      if (sharedBuckets.length > 0) {
-        // Use the first shared bucket (most likely to be the world owner's shared assets)
-        const sharedBucket = sharedBuckets[0];
-        const bucketIndex = buckets.findIndex(b => b.key === sharedBucket.key);
-        console.info(`fa-token-browser | Auto-selected shared bucket: ${sharedBucket.label} (index: ${bucketIndex})`);
+      // Use specific bucket index if valid
+      if (bucketIndex >= 0 && bucketIndex < buckets.length) {
+        console.info(`fa-token-browser | Using preferred bucket: ${buckets[bucketIndex].label} (index: ${bucketIndex})`);
         return bucketIndex;
-      } else {
-        // Use "My Assets Library" (first bucket)
-        console.info(`fa-token-browser | Using default bucket: ${buckets[0].label} (index: 0)`);
-        return 0;
       }
+      
+      // Invalid index, fallback to auto-detection
+      console.warn(`fa-token-browser | Invalid bucket index ${bucketIndex}, falling back to auto-detection`);
+      const sharedBuckets = buckets.filter(bucket => bucket.label.startsWith('Shared Folder:'));
+      const fallbackIndex = sharedBuckets.length > 0 ? buckets.findIndex(b => b.key === sharedBuckets[0].key) : 0;
+      console.info(`fa-token-browser | Fallback bucket: ${buckets[fallbackIndex].label} (index: ${fallbackIndex})`);
+      return fallbackIndex;
+      
     } catch (error) {
       console.warn('fa-token-browser | Error detecting Forge bucket:', error);
-      return null;
-    }
-  }
-
-  /**
-   * Get user's preferred bucket from module settings
-   * @returns {string|number|null} Preferred bucket or null if not set
-   * @private
-   */
-  _getPreferredBucket() {
-    try {
-      const setting = game.settings.get('fa-token-browser', 'preferredForgeBucket');
-      return setting !== 'auto' ? setting : null;
-    } catch (error) {
-      // Setting doesn't exist yet, will be created when module registers settings
       return null;
     }
   }
@@ -461,11 +466,10 @@ export class TokenCacheManager {
       for (const filePath of cachedFiles) {
         const filename = filePath.split('/').pop();
         
-        // Store cache metadata for this file with optimized path
+        // Store cache metadata for this file (relative path only)
         const cachePath = `${cacheDir}/${filename}`;
-        const optimizedPath = forgeOptimizer.optimizeCacheURL(cachePath);
         this.cacheInventory.set(filename, {
-          localPath: optimizedPath,
+          localPath: cachePath, // Store relative path - optimize on retrieval
           isDownloaded: true,
           downloadedAt: Date.now(), // Approximate - we don't know the real time
           lastAccessed: Date.now()
@@ -598,17 +602,16 @@ export class TokenCacheManager {
       console.info(`fa-token-browser | Uploading ${cacheFilename} to ${storageDesc}`);
       await FilePickerImpl.upload(storageTarget, cacheDir, file, bucketOptions, { notify: false });
       
-      // Update token cache metadata with optimized path
+      // Update token cache metadata (store relative path, optimize on retrieval)
       const now = Date.now();
-      const optimizedPath = forgeOptimizer.optimizeCacheURL(cachePath);
       tokenData.cache.isDownloaded = true;
-      tokenData.cache.localPath = optimizedPath;
+      tokenData.cache.localPath = cachePath; // Store relative path
       tokenData.cache.downloadedAt = now;
       tokenData.cache.lastAccessed = now;
       
-      // Update cache inventory with optimized path
+      // Update cache inventory (store relative path)
       this.cacheInventory.set(tokenData.filename, {
-        localPath: optimizedPath,
+        localPath: cachePath, // Store relative path
         isDownloaded: true,
         downloadedAt: now,
         lastAccessed: now
@@ -621,8 +624,8 @@ export class TokenCacheManager {
         }, 800); // Slightly longer delay than the dragdrop manager to avoid conflicts
       }
       
-      // Return the optimized path 
-      return optimizedPath;
+      // Return optimized path (optimize only at return point)
+      return forgeOptimizer.optimizeCacheURL(cachePath);
       
     } catch (error) {
       console.error('fa-token-browser | Download failed:', error);

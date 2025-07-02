@@ -171,19 +171,16 @@ Hooks.once('init', async () => {
     }
   });
 
-  // Register Forge bucket preference setting
+  // Register Forge bucket preference setting (will be populated dynamically)
   game.settings.register('fa-token-browser', 'preferredForgeBucket', {
     name: 'Preferred Forge Storage Bucket',
-    hint: 'Choose which Forge storage bucket to use for token caching. Auto will prefer shared folders if available, otherwise use your own assets.',
+    hint: 'Choose which Forge storage bucket to use for token caching. This setting will be populated with your available buckets when you open the FA Token Browser.',
     scope: 'client', // User-specific since bucket access is user-specific
     config: true,
     type: String,
     default: 'auto',
     choices: {
-      'auto': 'Auto (prefer shared folders)',
-      '0': 'My Assets Library',
-      '1': 'First Shared Folder',
-      '2': 'Second Shared Folder'
+      'auto': 'Auto-detect (will be updated with real bucket names)'
     },
     restricted: false, // Allow all users to set their preference
     onChange: value => {
@@ -234,6 +231,9 @@ Hooks.once('init', async () => {
       // Image state
       this._allImages = [];
       this._displayedImages = [];
+      
+      // Update Forge bucket choices when app opens
+      this._updateForgeBucketChoices();
     }
 
     static DEFAULT_OPTIONS = {
@@ -523,6 +523,42 @@ Hooks.once('init', async () => {
       }
       
       headerContent.appendChild(authContainer);
+    }
+
+    /**
+     * Update Forge bucket choices in module settings with real bucket names
+     * @private
+     */
+    async _updateForgeBucketChoices() {
+      try {
+        // Only update if we're on Forge and have access to bucket data
+        if (!window.ForgeVTTFilePickerCore) {
+          return;
+        }
+
+        // Get available buckets
+        const buckets = await window.ForgeVTTFilePickerCore.getForgeVTTBucketsAsync();
+        if (!buckets || buckets.length === 0) {
+          return;
+        }
+
+        // Build new choices object with real bucket names
+        const choices = { 'auto': 'Auto-detect best bucket' };
+        
+        buckets.forEach((bucket, index) => {
+          choices[index.toString()] = bucket.label;
+        });
+
+        // Update the setting definition
+        const setting = game.settings.settings.get('fa-token-browser.preferredForgeBucket');
+        if (setting) {
+          setting.choices = choices;
+          console.info('fa-token-browser | Updated Forge bucket choices:', Object.values(choices));
+        }
+
+      } catch (error) {
+        console.warn('fa-token-browser | Failed to update Forge bucket choices:', error);
+      }
     }
 
     /**
