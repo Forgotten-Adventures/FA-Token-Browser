@@ -31,5 +31,7 @@
   ],
   "styles": [
     "styles/token-browser.css"
-  ]
+  ],
+  "manifest": "https://raw.githubusercontent.com/Forgotten-Adventures/FA-Token-Browser/refs/heads/main/module.json",
+  "download": "https://github.com/Forgotten-Adventures/FA_Token_Browser/raw/main/fa-token-browser.zip"
 }
