@@ -106,14 +106,16 @@ Hooks.once('init', async () => {
     }
   });
 
-  // Register Patreon authentication data setting (hidden from UI)
+  // Register Patreon authentication data setting (hidden from UI, user-specific)
+  // NOTE: Authentication is user-specific because server validates both auth state AND IP address
+  // This prevents confusion where users see "authenticated" status but can't access premium tokens
   game.settings.register('fa-token-browser', 'patreon_auth_data', {
     name: 'Patreon Authentication Data',
-    scope: 'world',
+    scope: 'client', // User-specific authentication (matches IP-based server validation)
     config: false, // Hidden from settings UI
     type: Object,
     default: null,
-    restricted: true
+    restricted: false // Allow all users to store their own auth data
   });
 
   // Register cache directory setting
