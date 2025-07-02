@@ -439,14 +439,26 @@ Hooks.once('init', async () => {
           <span class="auth-tier-text">${context.userTier} supporter</span>
         `;
         
-        // Attach click handler for disconnect functionality
-        statusDisplay.addEventListener('click', (event) => {
+        // Attach comprehensive event handlers for disconnect functionality
+        const handleDisconnect = (event) => {
           event.preventDefault();
           event.stopPropagation();
+          event.stopImmediatePropagation();
           console.log('fa-token-browser | Patreon disconnect button clicked');
           this.patreonAuth.handlePatreonDisconnect(this, true); // Show confirmation for manual disconnect
-        });
+        };
+        
+        // Prevent header drag on all mouse events
+        const preventHeaderDrag = (event) => {
+          event.stopPropagation();
+          event.stopImmediatePropagation();
+        };
+        
+        statusDisplay.addEventListener('click', handleDisconnect);
+        statusDisplay.addEventListener('mousedown', preventHeaderDrag);
+        statusDisplay.addEventListener('pointerdown', preventHeaderDrag);
         statusDisplay.style.cursor = 'pointer';
+        statusDisplay.style.pointerEvents = 'auto';
         statusDisplay.title = 'Click to disconnect';
         
         authContainer.appendChild(statusDisplay);
@@ -460,10 +472,11 @@ Hooks.once('init', async () => {
           <span class="auth-text">Connect Patreon</span>
         `;
         
-        // Attach click handler immediately when button is created
-        connectBtn.addEventListener('click', async (event) => {
+        // Attach comprehensive event handlers for connect functionality
+        const handleConnect = async (event) => {
           event.preventDefault();
           event.stopPropagation();
+          event.stopImmediatePropagation();
           console.log('fa-token-browser | Patreon connect button clicked');
           try {
             await this.patreonAuth.handlePatreonConnect(this);
@@ -471,7 +484,18 @@ Hooks.once('init', async () => {
             console.error('fa-token-browser | Error in Patreon connect handler:', error);
             ui.notifications.error(`Failed to connect to Patreon: ${error.message}`);
           }
-        });
+        };
+        
+        // Prevent header drag on all mouse events
+        const preventHeaderDrag = (event) => {
+          event.stopPropagation();
+          event.stopImmediatePropagation();
+        };
+        
+        connectBtn.addEventListener('click', handleConnect);
+        connectBtn.addEventListener('mousedown', preventHeaderDrag);
+        connectBtn.addEventListener('pointerdown', preventHeaderDrag);
+        connectBtn.style.pointerEvents = 'auto';
         
         authContainer.appendChild(connectBtn);
       }

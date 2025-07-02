@@ -1039,15 +1039,24 @@ export class TokenDragDropManager {
       const preview = document.createElement('div');
       preview.className = 'fa-token-floating-preview';
       
-      // Try to get data URL from canvas, fallback to original image if tainted
+      // Try to get data URL from canvas, fallback to cached/original image if tainted
       let backgroundImage;
       try {
         backgroundImage = `url(${canvas.toDataURL('image/webp', 0.8)})`;
       } catch (error) {
         console.warn('fa-token-browser | Canvas tainted, using fallback for floating preview:', error);
-        // Fallback to the original image path if canvas is tainted
-        const path = tokenItem.getAttribute('data-path');
-        backgroundImage = path ? `url(${path})` : 'none';
+        // Fallback to the cached file path for cloud tokens, or original path for local tokens
+        const tokenData = this._getTokenDataFromElement(tokenItem);
+        let fallbackPath = tokenItem.getAttribute('data-path');
+        
+        if (tokenData && tokenData.source === 'cloud') {
+          const cachedPath = this.parentApp.tokenDataService.cacheManager.getCachedFilePath(tokenData);
+          if (cachedPath) {
+            fallbackPath = cachedPath;
+          }
+        }
+        
+        backgroundImage = fallbackPath ? `url(${fallbackPath})` : 'none';
       }
       
       preview.style.cssText = `

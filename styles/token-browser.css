@@ -63,6 +63,9 @@
 /* Header Patreon auth styling */
 #token-browser-app .header-patreon-auth {
   margin-left: auto;
+  pointer-events: auto;
+  position: relative;
+  z-index: 5;
 }
 
 #token-browser-app .header-patreon-auth .patreon-connect-button {
@@ -79,6 +82,9 @@
   cursor: pointer;
   transition: all 0.2s ease;
   box-shadow: 0 1px 3px rgba(255, 66, 77, 0.3);
+  pointer-events: auto;
+  position: relative;
+  z-index: 10;
 }
 
 #token-browser-app .header-patreon-auth .patreon-connect-button:hover {
@@ -98,6 +104,9 @@
   color: rgb(34, 197, 94);
   font-size: 0.8em;
   font-weight: 500;
+  pointer-events: auto;
+  position: relative;
+  z-index: 10;
 }
 
 #token-browser-app .window-content {
