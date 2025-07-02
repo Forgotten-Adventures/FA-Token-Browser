@@ -1,6 +1,16 @@
 import { parseTokenSize, calcDragPreviewPixelDims } from './geometry.js';
 
 /**
+ * Utility function to detect if we're running on Forge
+ * @returns {boolean} True if running on Forge-VTT
+ */
+function isRunningOnForge() {
+  return window.location.hostname.includes('forge-vtt.com') || 
+         window.location.hostname.includes('forgevtt.com') ||
+         (typeof ForgeVTT !== 'undefined' && ForgeVTT.usingTheForge);
+}
+
+/**
  * Manages drag and drop functionality for token items
  * Handles drag setup, preview generation, and cleanup
  */
@@ -285,7 +295,8 @@ export class TokenDragDropManager {
           }
           const sourceImg = new Image();
           // Set crossOrigin for cloud tokens to prevent canvas tainting
-          if (tokenData && tokenData.source === 'cloud') {
+          // Also set it for local tokens on Forge, as they may be served cross-origin
+          if ((tokenData && tokenData.source === 'cloud') || isRunningOnForge()) {
             sourceImg.crossOrigin = "anonymous";
           }
           sourceImg.onload = () => {
@@ -319,7 +330,19 @@ export class TokenDragDropManager {
                 
                 tokenItem._preloadedDragDataURL = dataURL;
               } catch (error) {
-                console.warn('fa-token-browser | Failed to generate optimized drag data URL (canvas may be tainted):', error);
+                // Check if this is a local token - canvas tainting shouldn't happen for truly local tokens
+                const tokenData = this._getTokenDataFromElement(tokenItem);
+                const isCloudToken = tokenData && tokenData.source === 'cloud';
+                
+                if (isCloudToken || isRunningOnForge()) {
+                  // For cloud tokens or on Forge (where even local tokens may be cross-origin), 
+                  // this is expected behavior - only log as info
+                  console.info('fa-token-browser | Canvas tainted for drag optimization (using fallback):', filename);
+                } else {
+                  // For truly local tokens on local Foundry, this shouldn't happen
+                  console.warn('fa-token-browser | Failed to generate optimized drag data URL (canvas may be tainted):', error);
+                }
+                
                 // Don't store the data URL if canvas is tainted - fallback will be used
                 tokenItem._preloadedDragDataURL = null;
               }
@@ -1044,7 +1067,10 @@ export class TokenDragDropManager {
       try {
         backgroundImage = `url(${canvas.toDataURL('image/webp', 0.8)})`;
       } catch (error) {
-        console.warn('fa-token-browser | Canvas tainted, using fallback for floating preview:', error);
+        // Only show warning if not on Forge (where canvas tainting is expected)
+        if (!isRunningOnForge()) {
+          console.warn('fa-token-browser | Canvas tainted, using fallback for floating preview:', error);
+        }
         // Fallback to the cached file path for cloud tokens, or original path for local tokens
         const tokenData = this._getTokenDataFromElement(tokenItem);
         let fallbackPath = tokenItem.getAttribute('data-path');
@@ -1426,9 +1452,9 @@ export class TokenDragDropManager {
 
       // For cached cloud tokens or when DOM lookup fails, create fresh image
       const freshImg = new Image();
-      // Set crossOrigin for cloud tokens to prevent canvas tainting
-      // We need to check if this might be a cloud token URL
-      if (path && (path.includes('://') || path.includes('forge-vtt.com') || path.includes('cdn.'))) {
+      // Set crossOrigin for cloud tokens and external URLs to prevent canvas tainting
+      // Also set it when running on Forge as local tokens may be served cross-origin
+      if (path && (path.includes('://') || path.includes('forge-vtt.com') || path.includes('cdn.') || isRunningOnForge())) {
         freshImg.crossOrigin = "anonymous";
       }
       
