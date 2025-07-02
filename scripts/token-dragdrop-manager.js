@@ -284,6 +284,10 @@ export class TokenDragDropManager {
             }
           }
           const sourceImg = new Image();
+          // Set crossOrigin for cloud tokens to prevent canvas tainting
+          if (tokenData && tokenData.source === 'cloud') {
+            sourceImg.crossOrigin = "anonymous";
+          }
           sourceImg.onload = () => {
             try {
               // Create canvas at the exact preview size
@@ -315,7 +319,9 @@ export class TokenDragDropManager {
                 
                 tokenItem._preloadedDragDataURL = dataURL;
               } catch (error) {
-                console.warn('fa-token-browser | Failed to generate optimized drag data URL:', error);
+                console.warn('fa-token-browser | Failed to generate optimized drag data URL (canvas may be tainted):', error);
+                // Don't store the data URL if canvas is tainted - fallback will be used
+                tokenItem._preloadedDragDataURL = null;
               }
               
               // Now that preload is complete, enable dragging
@@ -1032,13 +1038,25 @@ export class TokenDragDropManager {
       // Create preview element
       const preview = document.createElement('div');
       preview.className = 'fa-token-floating-preview';
-             preview.style.cssText = `
+      
+      // Try to get data URL from canvas, fallback to original image if tainted
+      let backgroundImage;
+      try {
+        backgroundImage = `url(${canvas.toDataURL('image/webp', 0.8)})`;
+      } catch (error) {
+        console.warn('fa-token-browser | Canvas tainted, using fallback for floating preview:', error);
+        // Fallback to the original image path if canvas is tainted
+        const path = tokenItem.getAttribute('data-path');
+        backgroundImage = path ? `url(${path})` : 'none';
+      }
+      
+      preview.style.cssText = `
          position: fixed;
          pointer-events: none;
          z-index: 10000;
          width: ${dimensions.width}px;
          height: ${dimensions.height}px;
-         background-image: url(${canvas.toDataURL('image/webp', 0.8)});
+         background-image: ${backgroundImage};
          background-size: contain;
          background-repeat: no-repeat;
          background-position: center;
@@ -1399,6 +1417,11 @@ export class TokenDragDropManager {
 
       // For cached cloud tokens or when DOM lookup fails, create fresh image
       const freshImg = new Image();
+      // Set crossOrigin for cloud tokens to prevent canvas tainting
+      // We need to check if this might be a cloud token URL
+      if (path && (path.includes('://') || path.includes('forge-vtt.com') || path.includes('cdn.'))) {
+        freshImg.crossOrigin = "anonymous";
+      }
       
       freshImg.onload = () => {
     try {

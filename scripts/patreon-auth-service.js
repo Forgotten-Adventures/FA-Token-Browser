@@ -255,6 +255,13 @@ export class PatreonOAuthApp extends foundry.applications.api.HandlebarsApplicat
     async close(options = {}) {
         // Stop polling
         this.stopPolling();
+        
+        // Notify the auth service that this window is closing
+        // so it can clean up the main app polling as well
+        if (this.patreonAuthService._activeOAuthWindow === this) {
+            this.patreonAuthService._activeOAuthWindow = null;
+            console.log('fa-token-browser | OAuth window closed, notifying auth service');
+        }
 
         return super.close(options);
     }
@@ -273,6 +280,10 @@ export class PatreonAuthService {
             scopes: 'identity%20identity%5Bemail%5D%20identity.memberships', // URL encoded scopes
             authUrl: 'https://www.patreon.com/oauth2/authorize'
         };
+        // Track active OAuth window and polling to prevent duplicates
+        this._activeOAuthWindow = null;
+        this._activePollingInterval = null;
+        this._activePollingTimeout = null;
     }
 
     /**
@@ -337,29 +348,14 @@ export class PatreonAuthService {
     /**
      * Setup Patreon authentication UI and handlers for a token browser app
      * @param {Object} app - The token browser application instance
+     * @deprecated This method is no longer used. Event handlers are now attached directly
+     * in _addPatreonAuthToHeader() for better reliability and timing.
      */
     setupPatreonAuthUI(app) {
-        const connectBtn = app.element.querySelector('#patreon-connect-btn');
-        const statusDisplay = app.element.querySelector('.auth-status-display');
-        
-        // Add click handler for connect button if it exists
-        if (connectBtn) {
-            connectBtn.addEventListener('click', async (event) => {
-                event.preventDefault();
-                await this.handlePatreonConnect(app);
-            });
-        }
-
-        // Add click handler for disconnect button if it exists
-        if (statusDisplay) {
-            statusDisplay.addEventListener('click', () => {
-                this.handlePatreonDisconnect(app, true); // Show confirmation for manual disconnect
-            });
-            statusDisplay.style.cursor = 'pointer';
-            statusDisplay.title = 'Click to disconnect';
-        }
-
-    
+        // NOTE: Event handlers are now attached directly when buttons are created
+        // in TokenBrowserApp._addPatreonAuthToHeader() to prevent timing issues
+        // and ensure handlers persist through re-renders.
+        console.warn('fa-token-browser | setupPatreonAuthUI is deprecated - event handlers attached directly in _addPatreonAuthToHeader');
     }
 
     /**
@@ -378,6 +374,35 @@ export class PatreonAuthService {
     }
 
     /**
+     * Clean up any active OAuth window and polling
+     * @param {Object} app - The token browser application instance
+     */
+    _cleanupActiveAuth(app) {
+        // Close existing OAuth window if open
+        if (this._activeOAuthWindow && this._activeOAuthWindow.rendered) {
+            try {
+                this._activeOAuthWindow.close();
+            } catch (error) {
+                console.warn('fa-token-browser | Failed to close OAuth window:', error);
+            }
+        }
+        this._activeOAuthWindow = null;
+        
+        // Clear polling interval
+        if (this._activePollingInterval) {
+            console.log('fa-token-browser | Cleaning up existing auth polling interval');
+            app.eventManager.clearInterval(this._activePollingInterval);
+            this._activePollingInterval = null;
+        }
+        
+        // Clear polling timeout
+        if (this._activePollingTimeout) {
+            app.eventManager.clearTimeout(this._activePollingTimeout);
+            this._activePollingTimeout = null;
+        }
+    }
+
+    /**
      * Handle Patreon connect button click
      * @param {Object} app - The token browser application instance
      */
@@ -385,28 +410,37 @@ export class PatreonAuthService {
         try {
             console.log('fa-token-browser | Starting Patreon authentication...');
             
+            // Clear any existing OAuth window and polling to prevent duplicates
+            this._cleanupActiveAuth(app);
+            
             const oauthApp = new PatreonOAuthApp(this);
+            this._activeOAuthWindow = oauthApp;
             oauthApp.render(true);
 
             // Periodically check for authentication changes
-            const checkAuthInterval = app.eventManager.createInterval(async () => {
+            this._activePollingInterval = app.eventManager.createInterval(async () => {
                 const authData = game.settings.get('fa-token-browser', 'patreon_auth_data');
                 if (authData && authData.authenticated) {
+                    console.log('fa-token-browser | Authentication detected, updating UI and refreshing tokens');
                     await this.updateAuthUI(app);
-                    // Refresh tokens when authentication completes
+                    // Refresh tokens when authentication completes (only once)
                     await this.refreshTokens(app);
-                    app.eventManager.clearInterval(checkAuthInterval);
+                    // Clean up after successful authentication
+                    this._cleanupActiveAuth(app);
                 }
             }, 1000);
 
             // Stop checking after a timeout
-            app.eventManager.createTimeout(() => {
-                app.eventManager.clearInterval(checkAuthInterval);
+            this._activePollingTimeout = app.eventManager.createTimeout(() => {
+                console.log('fa-token-browser | Auth polling timeout reached, cleaning up');
+                this._cleanupActiveAuth(app);
             }, 300000); // 5 minutes
 
         } catch (error) {
             console.error('fa-token-browser | Failed to open Patreon authentication:', error);
             ui.notifications.error(`Failed to open authentication: ${error.message}`);
+            // Clean up on error
+            this._cleanupActiveAuth(app);
         }
     }
 
@@ -416,17 +450,24 @@ export class PatreonAuthService {
      */
     async refreshTokens(app) {
         try {
-      
+            // Prevent multiple simultaneous refreshes by checking if we already processed this auth
+            const authData = game.settings.get('fa-token-browser', 'patreon_auth_data');
+            const currentTime = Date.now();
+            
+            // Skip if we recently processed this authentication (within 5 seconds)
+            if (this._lastRefreshTime && (currentTime - this._lastRefreshTime) < 5000) {
+                console.log('fa-token-browser | Skipping duplicate token refresh');
+                return;
+            }
+            
+            this._lastRefreshTime = currentTime;
             
             // Show notification about token refresh
-            const authData = game.settings.get('fa-token-browser', 'patreon_auth_data');
             if (authData && authData.authenticated) {
                 ui.notifications.info("✅ Premium tokens loaded!");
             } else {
                 ui.notifications.info("ℹ️ Switched to free tokens only");
             }
-            
-  
             
         } catch (error) {
             console.error('fa-token-browser | Failed to refresh tokens:', error);

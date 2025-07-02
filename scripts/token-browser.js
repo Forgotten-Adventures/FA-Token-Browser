@@ -324,8 +324,6 @@ Hooks.once('init', async () => {
       
       // Initialize preview manager
       this.previewManager.initialize();
-      // Setup Patreon authentication UI (now in header)
-      this.patreonAuth.setupPatreonAuthUI(this);
       // Activate size selector
       this._activateSizeSelector();
       // Setup simple scroll-based lazy loading
@@ -434,19 +432,48 @@ Hooks.once('init', async () => {
       authContainer.className = 'header-patreon-auth';
       
       if (context.isAuthenticated) {
-        authContainer.innerHTML = `
-          <div class="auth-status-display">
-            <i class="fas fa-check-circle"></i>
-            <span class="auth-tier-text">${context.userTier} supporter</span>
-          </div>
+        const statusDisplay = document.createElement('div');
+        statusDisplay.className = 'auth-status-display';
+        statusDisplay.innerHTML = `
+          <i class="fas fa-check-circle"></i>
+          <span class="auth-tier-text">${context.userTier} supporter</span>
         `;
+        
+        // Attach click handler for disconnect functionality
+        statusDisplay.addEventListener('click', (event) => {
+          event.preventDefault();
+          event.stopPropagation();
+          console.log('fa-token-browser | Patreon disconnect button clicked');
+          this.patreonAuth.handlePatreonDisconnect(this, true); // Show confirmation for manual disconnect
+        });
+        statusDisplay.style.cursor = 'pointer';
+        statusDisplay.title = 'Click to disconnect';
+        
+        authContainer.appendChild(statusDisplay);
       } else {
-        authContainer.innerHTML = `
-          <button type="button" id="patreon-connect-btn" class="patreon-connect-button">
-            <i class="fas fa-user-shield"></i>
-            <span class="auth-text">Connect Patreon</span>
-          </button>
+        const connectBtn = document.createElement('button');
+        connectBtn.type = 'button';
+        connectBtn.id = 'patreon-connect-btn';
+        connectBtn.className = 'patreon-connect-button';
+        connectBtn.innerHTML = `
+          <i class="fas fa-user-shield"></i>
+          <span class="auth-text">Connect Patreon</span>
         `;
+        
+        // Attach click handler immediately when button is created
+        connectBtn.addEventListener('click', async (event) => {
+          event.preventDefault();
+          event.stopPropagation();
+          console.log('fa-token-browser | Patreon connect button clicked');
+          try {
+            await this.patreonAuth.handlePatreonConnect(this);
+          } catch (error) {
+            console.error('fa-token-browser | Error in Patreon connect handler:', error);
+            ui.notifications.error(`Failed to connect to Patreon: ${error.message}`);
+          }
+        });
+        
+        authContainer.appendChild(connectBtn);
       }
       
       headerContent.appendChild(authContainer);
