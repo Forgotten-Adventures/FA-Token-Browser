@@ -5,12 +5,77 @@
 
 import { isCloudToken } from './token-data-types.js';
 
+/**
+ * Utility function to detect if we're running on Forge
+ * @returns {boolean} True if running on Forge-VTT
+ */
+function isRunningOnForge() {
+  return window.location.hostname.includes('forge-vtt.com') || 
+         window.location.hostname.includes('forgevtt.com') ||
+         (typeof ForgeVTT !== 'undefined' && ForgeVTT.usingTheForge);
+}
+
+/**
+ * Extract Forge account ID from current URL or ForgeVTT global
+ * @returns {string|null} Forge account ID or null if not available
+ */
+function getForgeAccountId() {
+  // Try to get from ForgeVTT global first
+  if (typeof ForgeVTT !== 'undefined' && ForgeVTT.usingTheForge) {
+    // ForgeVTT might expose account info
+    if (ForgeVTT.accountId) return ForgeVTT.accountId;
+    if (ForgeVTT.userId) return ForgeVTT.userId;
+  }
+  
+  // Extract from hostname if available
+  // Pattern: https://WORLD_NAME.forge-vtt.com -> we need to get account ID another way
+  const hostname = window.location.hostname;
+  if (hostname.includes('forge-vtt.com')) {
+    // Check if we can extract from any existing asset URLs
+    // Look for existing assets that might have the full URL
+    const existingImages = Array.from(document.querySelectorAll('img[src*="assets.forge-vtt.com"]'));
+    for (const img of existingImages) {
+      const match = img.src.match(/assets\.forge-vtt\.com\/([a-f0-9]{24})\//);
+      if (match) {
+        return match[1];
+      }
+    }
+    
+    // If no existing assets, we'll need to make a request to discover it
+    return null;
+  }
+  
+  return null;
+}
+
+/**
+ * Get optimized Forge cache URL by using direct assets URL if possible
+ * @param {string} originalPath - Original cache path
+ * @returns {string} Optimized URL or original path
+ */
+function getOptimizedForgeCacheUrl(originalPath) {
+  if (!isRunningOnForge()) {
+    return originalPath;
+  }
+  
+  const accountId = getForgeAccountId();
+  if (!accountId) {
+    return originalPath;
+  }
+  
+  // Convert from friendly URL to direct assets URL
+  // From: fa-token-browser-cache/filename.webp  
+  // To: https://assets.forge-vtt.com/{accountId}/fa-token-browser-cache/filename.webp
+  return `https://assets.forge-vtt.com/${accountId}/${originalPath}`;
+}
+
 export class TokenCacheManager {
   constructor() {
     this.downloadPromises = new Map(); // Prevent duplicate downloads
     this.initialized = false;
     this.cacheInventory = new Map(); // filename -> cache metadata
     this.parentApp = null; // Reference to the token browser app for UI updates
+    this._forgeAccountId = null; // Cache the Forge account ID once discovered
   }
 
   /**
@@ -19,6 +84,46 @@ export class TokenCacheManager {
    */
   setParentApp(parentApp) {
     this.parentApp = parentApp;
+  }
+
+  /**
+   * Discover Forge account ID by making a test request and capturing redirect
+   * @returns {Promise<string|null>} Forge account ID or null if not discovered
+   * @private
+   */
+  async _discoverForgeAccountId() {
+    if (!isRunningOnForge() || this._forgeAccountId) {
+      return this._forgeAccountId;
+    }
+
+    try {
+      // Make a HEAD request to a cache path and capture the redirect
+      const cacheDir = this._getCacheDirectory();
+      const testUrl = `${window.location.origin}/${cacheDir}/test.txt`;
+      
+      const response = await fetch(testUrl, { 
+        method: 'HEAD',
+        redirect: 'manual' // Don't follow redirects, capture them
+      });
+      
+      // Check for Location header in 3xx responses
+      if (response.status >= 300 && response.status < 400) {
+        const location = response.headers.get('Location');
+        if (location) {
+          const match = location.match(/assets\.forge-vtt\.com\/([a-f0-9]{24})\//);
+          if (match) {
+            this._forgeAccountId = match[1];
+            console.log(`fa-token-browser | Discovered Forge account ID: ${this._forgeAccountId}`);
+            return this._forgeAccountId;
+          }
+        }
+      }
+    } catch (error) {
+      // Silent fail - fallback to original URLs
+      console.debug('fa-token-browser | Could not discover Forge account ID:', error);
+    }
+    
+    return null;
   }
 
   /**
@@ -101,6 +206,13 @@ export class TokenCacheManager {
       // Clean up old cached files on startup
       await this._cleanupOldCache();
       
+      // Try to discover Forge account ID early (don't wait for it)
+      if (isRunningOnForge()) {
+        this._discoverForgeAccountId().catch(() => {
+          // Silent fail - will retry later
+        });
+      }
+      
       this.initialized = true;
     } catch (error) {
       console.error('fa-token-browser | Cache initialization failed:', error);
@@ -163,7 +275,7 @@ export class TokenCacheManager {
   }
 
   /**
-   * Get cached file path for a token
+   * Get cached file path for a token (optimized for Forge)
    * @param {TokenData} tokenData - Token data
    * @returns {string|null} Cached file path or null if not cached
    */
@@ -174,7 +286,7 @@ export class TokenCacheManager {
 
     // Check if token is marked as downloaded in TokenData
     if (tokenData.cache.isDownloaded && tokenData.cache.localPath) {
-      return tokenData.cache.localPath;
+      return this._optimizeForgeUrl(tokenData.cache.localPath);
     }
     
     // Check cache inventory (restored from filesystem scan)
@@ -186,10 +298,43 @@ export class TokenCacheManager {
       tokenData.cache.downloadedAt = inventoryEntry.downloadedAt;
       tokenData.cache.lastAccessed = Date.now(); // Update access time
       
-      return inventoryEntry.localPath;
+      return this._optimizeForgeUrl(inventoryEntry.localPath);
     }
     
     return null; // Not cached
+  }
+
+  /**
+   * Optimize Forge URL to use direct assets URL if possible
+   * @param {string} originalPath - Original cache path
+   * @returns {string} Optimized URL or original path
+   * @private
+   */
+  _optimizeForgeUrl(originalPath) {
+    if (!isRunningOnForge()) {
+      return originalPath;
+    }
+    
+    // Use cached account ID if available
+    if (this._forgeAccountId) {
+      return `https://assets.forge-vtt.com/${this._forgeAccountId}/${originalPath}`;
+    }
+    
+    // Try to get account ID from global functions
+    const accountId = getForgeAccountId();
+    if (accountId) {
+      this._forgeAccountId = accountId; // Cache it
+      return `https://assets.forge-vtt.com/${accountId}/${originalPath}`;
+    }
+    
+    // Trigger discovery in background (don't wait for it)
+    this._discoverForgeAccountId().then(discoveredId => {
+      if (discoveredId) {
+        this._forgeAccountId = discoveredId;
+      }
+    });
+    
+    return originalPath; // Fallback to original path
   }
 
 
