@@ -171,6 +171,26 @@ Hooks.once('init', async () => {
     }
   });
 
+  // Register Forge bucket preference setting
+  game.settings.register('fa-token-browser', 'preferredForgeBucket', {
+    name: 'Preferred Forge Storage Bucket',
+    hint: 'Choose which Forge storage bucket to use for token caching. Auto will prefer shared folders if available, otherwise use your own assets.',
+    scope: 'client', // User-specific since bucket access is user-specific
+    config: true,
+    type: String,
+    default: 'auto',
+    choices: {
+      'auto': 'Auto (prefer shared folders)',
+      '0': 'My Assets Library',
+      '1': 'First Shared Folder',
+      '2': 'Second Shared Folder'
+    },
+    restricted: false, // Allow all users to set their preference
+    onChange: value => {
+      console.log('fa-token-browser | Forge bucket preference changed:', value);
+    }
+  });
+
   // Register canvas drop handler hook (only once)
   // Use Hooks.once to ensure it's only registered once even during dev reloads
   if (!window.faTokenBrowser.dropHandlerRegistered) {

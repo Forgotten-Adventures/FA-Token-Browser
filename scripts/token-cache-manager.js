@@ -12,10 +12,8 @@ import { isCloudToken } from './token-data-types.js';
 class ForgeURLOptimizer {
   constructor() {
     this.forgeAccountId = null;
-    this.worldOwnerId = null;
     this.isInitialized = false;
     this.initializationPromise = null;
-    this._loggedStorageTarget = false;
   }
 
   /**
@@ -29,7 +27,7 @@ class ForgeURLOptimizer {
   }
 
   /**
-   * Initialize Forge account ID detection and world owner detection
+   * Initialize Forge account ID detection for URL optimization
    * @returns {Promise<boolean>} True if initialized successfully
    */
   async initialize() {
@@ -49,60 +47,18 @@ class ForgeURLOptimizer {
   }
 
   /**
-   * Initialize both account ID and world owner detection
+   * Initialize account ID detection for URL optimization
    * @returns {Promise<boolean>} True if initialized successfully
    * @private
    */
   async _initializeForgeData() {
     try {
-      // Detect account ID from module icon
+      // Detect account ID from module icon for URL optimization
       const accountIdDetected = await this._detectForgeAccountId();
-      
-      // Detect world owner
-      this._detectWorldOwner();
-      
       return accountIdDetected;
     } catch (error) {
       console.error('fa-token-browser | Failed to initialize Forge data:', error);
       return false;
-    }
-  }
-
-  /**
-   * Detect the world owner for proper storage targeting
-   * @private
-   */
-  _detectWorldOwner() {
-    try {
-      // Try multiple methods to get world owner
-      let ownerId = null;
-      
-      // Method 1: game.world.owner (most reliable)
-      if (game?.world?.owner) {
-        ownerId = game.world.owner;
-      }
-      // Method 2: game.users find first GM
-      else if (game?.users) {
-        const gm = game.users.find(user => user.isGM && user.active);
-        ownerId = gm?.id;
-      }
-      // Method 3: current user if they're the GM
-      else if (game?.user?.isGM) {
-        ownerId = game.user.id;
-      }
-      
-             if (ownerId) {
-         this.worldOwnerId = ownerId;
-         const currentUserId = game?.user?.id;
-         const isOwner = currentUserId === ownerId;
-         console.info(`fa-token-browser | Forge world owner detected: ${ownerId} (current user is ${isOwner ? 'owner' : 'assistant/other'})`);
-       } else {
-         console.warn('fa-token-browser | Failed to detect world owner, using current user');
-         this.worldOwnerId = game?.user?.id || null;
-       }
-    } catch (error) {
-      console.warn('fa-token-browser | Error detecting world owner:', error);
-      this.worldOwnerId = game?.user?.id || null;
     }
   }
 
@@ -206,52 +162,128 @@ class ForgeURLOptimizer {
     return this.forgeAccountId;
   }
 
-  /**
-   * Get the world owner ID for storage operations
-   * @returns {string|null} The world owner ID or null
-   */
-  getWorldOwnerId() {
-    return this.worldOwnerId;
-  }
 
-  /**
-   * Check if current user should use owner storage (Assistant GMs and non-owners)
-   * @returns {boolean} True if should target owner storage
-   */
-  shouldUseOwnerStorage() {
-    if (!this.isRunningOnForge() || !this.worldOwnerId) {
-      return false;
-    }
-    
-    const currentUserId = game?.user?.id;
-    const isWorldOwner = currentUserId === this.worldOwnerId;
-    
-    // Use owner storage if current user is not the world owner
-    return !isWorldOwner;
-  }
+
+
 
   /**
    * Get storage target for file operations on Forge
-   * @returns {string} Storage target ('data' for local/owner, or specific user storage)
+   * @returns {string} Storage target ('data' for local/owner, or default Forge bucket system)
    */
   getStorageTarget() {
     if (!this.isRunningOnForge()) {
       return 'data'; // Standard Foundry storage
     }
     
-    if (this.shouldUseOwnerStorage() && this.worldOwnerId) {
-      // Target owner's storage for Assistant GMs and other users
-      const target = `user:${this.worldOwnerId}`;
-      // Only log once per session to avoid spam
-      if (!this._loggedStorageTarget) {
-        console.info(`fa-token-browser | Using owner storage target: ${target} (fixes Assistant GM storage issues)`);
-        this._loggedStorageTarget = true;
-      }
-      return target;
+    // On Forge, detect current bucket selection and use appropriate storage
+    const currentBucket = this._detectCurrentForgeBucket();
+    if (currentBucket) {
+      return 'forgevtt'; // Use Forge VTT source with bucket selection
     }
     
-    // Use default storage (owner's own storage or local Foundry)
-    return 'data';
+    return 'data'; // Fallback to default
+  }
+
+  /**
+   * Get the appropriate Forge bucket for FA Token Browser operations
+   * @returns {string|number|null} Bucket key/index or null if not available
+   * @private
+   */
+  _detectCurrentForgeBucket() {
+    try {
+      const buckets = this._getForgeVTTBuckets();
+      if (!buckets || buckets.length === 0) {
+        return null;
+      }
+      
+      // Check if user has set a preferred bucket in module settings
+      const preferredBucket = this._getPreferredBucket();
+      if (preferredBucket !== null) {
+        console.info(`fa-token-browser | Using preferred bucket from settings: ${preferredBucket}`);
+        return preferredBucket;
+      }
+      
+      // Default strategy: Use shared bucket if available, otherwise use "My Assets Library"
+      const sharedBuckets = buckets.filter(bucket => bucket.label.startsWith('Shared Folder:'));
+      
+      if (sharedBuckets.length > 0) {
+        // Use the first shared bucket (most likely to be the world owner's shared assets)
+        const sharedBucket = sharedBuckets[0];
+        const bucketIndex = buckets.findIndex(b => b.key === sharedBucket.key);
+        console.info(`fa-token-browser | Auto-selected shared bucket: ${sharedBucket.label} (index: ${bucketIndex})`);
+        return bucketIndex;
+      } else {
+        // Use "My Assets Library" (first bucket)
+        console.info(`fa-token-browser | Using default bucket: ${buckets[0].label} (index: 0)`);
+        return 0;
+      }
+    } catch (error) {
+      console.warn('fa-token-browser | Error detecting Forge bucket:', error);
+      return null;
+    }
+  }
+
+  /**
+   * Get user's preferred bucket from module settings
+   * @returns {string|number|null} Preferred bucket or null if not set
+   * @private
+   */
+  _getPreferredBucket() {
+    try {
+      const setting = game.settings.get('fa-token-browser', 'preferredForgeBucket');
+      return setting !== 'auto' ? setting : null;
+    } catch (error) {
+      // Setting doesn't exist yet, will be created when module registers settings
+      return null;
+    }
+  }
+
+  /**
+   * Get Forge VTT buckets using the same method as FilePicker
+   * @returns {Array|null} Array of buckets or null if not available
+   * @private
+   */
+  _getForgeVTTBuckets() {
+    try {
+      // Try multiple methods to access Forge buckets
+      if (window.ForgeVTTFilePickerCore && window.ForgeVTTFilePickerCore.getForgeVTTBuckets) {
+        return window.ForgeVTTFilePickerCore.getForgeVTTBuckets();
+      }
+      
+      // Fallback: Try async method if available
+      if (window.ForgeVTTFilePickerCore && window.ForgeVTTFilePickerCore.getForgeVTTBucketsAsync) {
+        // This is async, but we can use cached results
+        const cached = window.ForgeVTTFilePickerCore._forgeBucketIndex;
+        if (cached) {
+          return cached;
+        }
+      }
+      
+      return null;
+    } catch (error) {
+      console.warn('fa-token-browser | Error getting Forge buckets:', error);
+      return null;
+    }
+  }
+
+  /**
+   * Get bucket call options for Forge API calls
+   * @returns {object} Call options for bucket authentication
+   * @private
+   */
+  _getBucketCallOptions() {
+    try {
+      const bucket = this._detectCurrentForgeBucket();
+      if (bucket !== null && window.ForgeVTTFilePickerCore && window.ForgeVTTFilePickerCore.bucketToCallOptions) {
+        const options = window.ForgeVTTFilePickerCore.bucketToCallOptions(bucket);
+        console.debug(`fa-token-browser | Using bucket ${bucket} with options:`, options);
+        return options;
+      }
+      return {};
+    } catch (error) {
+      console.warn('fa-token-browser | Error getting bucket call options:', error);
+      return {};
+    }
   }
 }
 
@@ -379,19 +411,34 @@ export class TokenCacheManager {
     try {
       const FilePickerImpl = foundry.applications.apps.FilePicker.implementation;
       const storageTarget = forgeOptimizer.getStorageTarget();
+      const bucketOptions = this._getBucketOptions();
       
       // Try to browse the cache directory
       try {
-        await FilePickerImpl.browse(storageTarget, cacheDir);
+        await FilePickerImpl.browse(storageTarget, cacheDir, bucketOptions);
       } catch (error) {
         // Directory doesn't exist, create it
         console.info(`fa-token-browser | Creating cache directory in ${storageTarget} storage: ${cacheDir}`);
-        await FilePickerImpl.createDirectory(storageTarget, cacheDir);
+        await FilePickerImpl.createDirectory(storageTarget, cacheDir, bucketOptions);
       }
     } catch (error) {
       console.error('fa-token-browser | Failed to ensure cache directory:', error);
       throw error;
     }
+  }
+
+  /**
+   * Get bucket options for FilePicker operations on Forge
+   * @returns {object} Options object with bucket information
+   * @private
+   */
+  _getBucketOptions() {
+    if (!forgeOptimizer.isRunningOnForge()) {
+      return {};
+    }
+    
+    const bucket = forgeOptimizer._detectCurrentForgeBucket();
+    return bucket ? { bucket } : {};
   }
 
   /**
@@ -403,8 +450,9 @@ export class TokenCacheManager {
       const FilePickerImpl = foundry.applications.apps.FilePicker.implementation;
       const cacheDir = this._getCacheDirectory();
       const storageTarget = forgeOptimizer.getStorageTarget();
+      const bucketOptions = this._getBucketOptions();
       
-      const result = await FilePickerImpl.browse(storageTarget, cacheDir);
+      const result = await FilePickerImpl.browse(storageTarget, cacheDir, bucketOptions);
       const cachedFiles = result.files;
       
       console.info(`fa-token-browser | Scanning cache directory in ${storageTarget} storage: found ${cachedFiles.length} files`);
@@ -413,9 +461,11 @@ export class TokenCacheManager {
       for (const filePath of cachedFiles) {
         const filename = filePath.split('/').pop();
         
-        // Store cache metadata for this file
+        // Store cache metadata for this file with optimized path
+        const cachePath = `${cacheDir}/${filename}`;
+        const optimizedPath = forgeOptimizer.optimizeCacheURL(cachePath);
         this.cacheInventory.set(filename, {
-          localPath: `${cacheDir}/${filename}`,
+          localPath: optimizedPath,
           isDownloaded: true,
           downloadedAt: Date.now(), // Approximate - we don't know the real time
           lastAccessed: Date.now()
@@ -539,23 +589,26 @@ export class TokenCacheManager {
       // Convert blob to File object for Foundry's file system
       const file = new File([blob], cacheFilename, { type: blob.type });
       
-      // Upload to appropriate storage (owner's storage for Assistant GMs on Forge)
+      // Upload to appropriate storage using current bucket selection
       const FilePickerImpl = foundry.applications.apps.FilePicker.implementation;
       const storageTarget = forgeOptimizer.getStorageTarget();
+      const bucketOptions = this._getBucketOptions();
       
-      console.info(`fa-token-browser | Uploading ${cacheFilename} to ${storageTarget} storage`);
-      await FilePickerImpl.upload(storageTarget, cacheDir, file);
+      const storageDesc = bucketOptions.bucket ? `bucket ${bucketOptions.bucket}` : `${storageTarget} storage`;
+      console.info(`fa-token-browser | Uploading ${cacheFilename} to ${storageDesc}`);
+      await FilePickerImpl.upload(storageTarget, cacheDir, file, bucketOptions, { notify: false });
       
-      // Update token cache metadata
+      // Update token cache metadata with optimized path
       const now = Date.now();
+      const optimizedPath = forgeOptimizer.optimizeCacheURL(cachePath);
       tokenData.cache.isDownloaded = true;
-      tokenData.cache.localPath = cachePath;
+      tokenData.cache.localPath = optimizedPath;
       tokenData.cache.downloadedAt = now;
       tokenData.cache.lastAccessed = now;
       
-      // Update cache inventory
+      // Update cache inventory with optimized path
       this.cacheInventory.set(tokenData.filename, {
-        localPath: cachePath,
+        localPath: optimizedPath,
         isDownloaded: true,
         downloadedAt: now,
         lastAccessed: now
@@ -568,7 +621,8 @@ export class TokenCacheManager {
         }, 800); // Slightly longer delay than the dragdrop manager to avoid conflicts
       }
       
-      return cachePath;
+      // Return the optimized path 
+      return optimizedPath;
       
     } catch (error) {
       console.error('fa-token-browser | Download failed:', error);
@@ -629,7 +683,8 @@ export class TokenCacheManager {
       }
       
       const storageTarget = forgeOptimizer.getStorageTarget();
-      const result = await FilePickerImpl.browse(storageTarget, cacheDir);
+      const bucketOptions = this._getBucketOptions();
+      const result = await FilePickerImpl.browse(storageTarget, cacheDir, bucketOptions);
       const now = Date.now();
       const maxAgeMs = maxCacheAge;
       
@@ -657,7 +712,7 @@ export class TokenCacheManager {
       for (const filePath of filesToDelete) {
         try {
           const filename = filePath.split('/').pop();
-          await FilePickerImpl.deleteFile(storageTarget, `${cacheDir}/${filename}`);
+          await FilePickerImpl.deleteFile(storageTarget, `${cacheDir}/${filename}`, bucketOptions);
         } catch (error) {
           console.warn('fa-token-browser | Failed to delete cache file:', filePath, error);
         }
@@ -695,7 +750,8 @@ export class TokenCacheManager {
       const cacheDir = this._getCacheDirectory();
       const maxCacheSize = this._getMaxCacheSize();
       const storageTarget = forgeOptimizer.getStorageTarget();
-      const result = await FilePickerImpl.browse(storageTarget, cacheDir);
+      const bucketOptions = this._getBucketOptions();
+      const result = await FilePickerImpl.browse(storageTarget, cacheDir, bucketOptions);
       
       // Count files without making HEAD requests
       const fileCount = result.files.length;
@@ -739,14 +795,16 @@ export class TokenCacheManager {
       const FilePickerImpl = foundry.applications.apps.FilePicker.implementation;
       const cacheDir = this._getCacheDirectory();
       const storageTarget = forgeOptimizer.getStorageTarget();
-      const result = await FilePickerImpl.browse(storageTarget, cacheDir);
+      const bucketOptions = this._getBucketOptions();
+      const result = await FilePickerImpl.browse(storageTarget, cacheDir, bucketOptions);
       
-      console.info(`fa-token-browser | Clearing cache from ${storageTarget} storage: ${result.files.length} files`);
+      const storageDesc = bucketOptions.bucket ? `bucket ${bucketOptions.bucket}` : `${storageTarget} storage`;
+      console.info(`fa-token-browser | Clearing cache from ${storageDesc}: ${result.files.length} files`);
       
       for (const filePath of result.files) {
         try {
           const filename = filePath.split('/').pop();
-          await FilePickerImpl.deleteFile(storageTarget, `${cacheDir}/${filename}`);
+          await FilePickerImpl.deleteFile(storageTarget, `${cacheDir}/${filename}`, bucketOptions);
         } catch (error) {
           console.warn('fa-token-browser | Failed to delete cache file:', filePath, error);
         }
