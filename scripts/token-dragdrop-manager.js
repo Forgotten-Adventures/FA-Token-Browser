@@ -1085,19 +1085,10 @@ export class TokenDragDropManager {
         backgroundImage = fallbackPath ? `url(${fallbackPath})` : 'none';
       }
       
-      preview.style.cssText = `
-         position: fixed;
-         pointer-events: none;
-         z-index: 10000;
-         width: ${dimensions.width}px;
-         height: ${dimensions.height}px;
-         background-image: ${backgroundImage};
-         background-size: contain;
-         background-repeat: no-repeat;
-         background-position: center;
-         opacity: 0.6;
-         transition: opacity 0.2s ease;
-       `;
+      preview.className = 'fa-token-browser-drag-preview';
+      preview.style.width = `${dimensions.width}px`;
+      preview.style.height = `${dimensions.height}px`;
+      preview.style.backgroundImage = backgroundImage;
       
       // Store offset for centering
       preview._offsetX = dimensions.width / 2;
@@ -1802,11 +1793,19 @@ export class TokenDragDropManager {
         throw new Error(`You do not have permission to modify actor "${actor.name}"`);
       }
       
-      // Show confirmation dialog and handle the prototype update
-      const confirmed = await TokenDragDropManager._showActorUpdateConfirmation(actor, dropData);
-      if (confirmed) {
+      // Check if Shift key is held - if so, bypass confirmation dialog
+      if (event && event.shiftKey) {
+        // Auto-accept with default settings (update actor image enabled)
+        dropData._updateActorImage = true;
         await TokenDragDropManager._updateActorPrototypeToken(actor, dropData);
-        ui.notifications.info(`Updated prototype token for "${actor.name}"`);
+        ui.notifications.info(`Updated prototype token for "${actor.name}" (Shift+Drop)`);
+      } else {
+        // Show confirmation dialog and handle the prototype update
+        const confirmed = await TokenDragDropManager._showActorUpdateConfirmation(actor, dropData, event);
+        if (confirmed) {
+          await TokenDragDropManager._updateActorPrototypeToken(actor, dropData);
+          ui.notifications.info(`Updated prototype token for "${actor.name}"`);
+        }
       }
       
       return true; // We handled this drop successfully
@@ -1822,16 +1821,21 @@ export class TokenDragDropManager {
    * Show confirmation dialog for actor token update using ApplicationV2
    * @param {Actor} actor - The actor to update
    * @param {Object} dropData - The token drop data
+   * @param {Event} event - The drop event containing cursor coordinates
    * @returns {Promise<boolean>} True if confirmed, false if cancelled
    * @private
    */
-  static async _showActorUpdateConfirmation(actor, dropData) {
+  static async _showActorUpdateConfirmation(actor, dropData, event) {
     return new Promise((resolve) => {
       
       // Create ApplicationV2-based confirmation dialog
       const { HandlebarsApplicationMixin } = foundry.applications.api;
       class ActorTokenUpdateDialog extends HandlebarsApplicationMixin(foundry.applications.api.ApplicationV2) {
-        constructor(actor, dropData, resolveCallback) {
+        constructor(actor, dropData, resolveCallback, cursorX, cursorY) {
+          // Calculate position relative to cursor (400px left, 300px up)
+          const dialogLeft = Math.max(cursorX - 430, 20); // 400px left of cursor, min 20px from left edge
+          const dialogTop = Math.max(cursorY - 200, 20); // 300px up from cursor, min 20px from top edge
+          
           super({
             id: 'actor-token-update-dialog',
             window: {
@@ -1842,7 +1846,9 @@ export class TokenDragDropManager {
             },
             position: {
               width: 400,
-              height: 'auto'
+              height: 'auto',
+              left: dialogLeft,
+              top: dialogTop
             }
           });
           this.actor = actor;
@@ -1929,8 +1935,12 @@ export class TokenDragDropManager {
         }
       }
       
+      // Get cursor coordinates from the event
+      const cursorX = event?.clientX || window.innerWidth / 2;
+      const cursorY = event?.clientY || window.innerHeight / 2;
+      
       // Create and render the dialog
-      const dialog = new ActorTokenUpdateDialog(actor, dropData, resolve);
+      const dialog = new ActorTokenUpdateDialog(actor, dropData, resolve, cursorX, cursorY);
       dialog.render(true);
     });
   }

@@ -10,8 +10,114 @@ import { TokenPreviewManager } from './token-preview-manager.js';
 import { TokenDragDropManager } from './token-dragdrop-manager.js';
 import { EventManager } from './event-manager.js';
 import { LazyLoadingManager } from './lazy-loading-manager.js';
+import { ForgeIntegrationService, forgeIntegration } from './forge-integration.js';
 
 export const TOKEN_BROWSER_VERSION = "0.0.1";
+
+/**
+ * Loading indicator utility for Token Browser
+ */
+class TokenBrowserLoadingIndicator {
+  constructor() {
+    this.isShowing = false;
+    this.loadingElement = null;
+    this.cancelled = false;
+  }
+
+  /**
+   * Show loading indicator
+   */
+  show() {
+    if (this.isShowing) return;
+    
+    this.isShowing = true;
+    
+    // Create loading notification (non-blocking)
+    this.loadingElement = document.createElement('div');
+    this.loadingElement.id = 'fa-token-browser-loading';
+    this.loadingElement.innerHTML = `
+      <div class="loading-content">
+        <div class="loading-header">
+          <div class="loading-spinner">
+            <i class="fas fa-spinner"></i>
+          </div>
+          <button class="loading-cancel" title="Cancel loading">
+            <i class="fas fa-times"></i>
+          </button>
+        </div>
+        <div class="loading-text">Loading FA Token Browser...</div>
+        <div class="loading-subtext">Fetching cloud tokens and initializing...</div>
+      </div>
+    `;
+    
+    document.body.appendChild(this.loadingElement);
+    
+    // Reset cancelled state when showing
+    this.cancelled = false;
+    
+    // Add cancel button functionality
+    const cancelButton = this.loadingElement.querySelector('.loading-cancel');
+    if (cancelButton) {
+      cancelButton.addEventListener('click', () => {
+        console.log('fa-token-browser | Loading cancelled by user');
+        this.cancelled = true;
+        this.hide();
+        // Show notification that loading was cancelled
+        ui.notifications.info('FA Token Browser loading cancelled');
+      });
+    }
+    
+    // Animate in using CSS classes
+    requestAnimationFrame(() => {
+      this.loadingElement.classList.add('visible');
+    });
+  }
+
+  /**
+   * Hide loading indicator
+   */
+  hide() {
+    if (!this.isShowing || !this.loadingElement) return;
+    
+    this.isShowing = false;
+    
+    // Animate out using CSS classes
+    this.loadingElement.classList.remove('visible');
+    
+    setTimeout(() => {
+      if (this.loadingElement && this.loadingElement.parentNode) {
+        this.loadingElement.parentNode.removeChild(this.loadingElement);
+      }
+      this.loadingElement = null;
+    }, 300);
+  }
+
+  /**
+   * Update loading text
+   * @param {string} text - New loading text
+   * @param {string} subtext - New loading subtext
+   */
+  updateText(text, subtext) {
+    if (!this.loadingElement) return;
+    
+    const textElement = this.loadingElement.querySelector('.loading-text');
+    const subtextElement = this.loadingElement.querySelector('.loading-subtext');
+    
+    if (textElement) textElement.textContent = text;
+    if (subtextElement) subtextElement.textContent = subtext;
+  }
+
+  /**
+   * Check if loading was cancelled by user
+   * @returns {boolean} True if cancelled
+   */
+  wasCancelled() {
+    return this.cancelled;
+  }
+}
+
+// Global loading indicator instance
+const tokenBrowserLoader = new TokenBrowserLoadingIndicator();
 
 Hooks.once('init', async () => {
 
@@ -19,13 +125,43 @@ Hooks.once('init', async () => {
   // Initialize simple global object for macro support (preserve existing properties)
   window.faTokenBrowser = {
     ...window.faTokenBrowser, // Preserve existing properties like PatreonAuthService, PatreonOAuthApp
-    openTokenBrowser: () => {
+    openTokenBrowser: async () => {
       const existingApp = Object.values(foundry.applications.instances).find(app => app.id === 'token-browser-app');
       if (existingApp) {
         existingApp.maximize();
         existingApp.bringToTop();
-      } else {
-        new TokenBrowserApp().render(true);
+        return;
+      }
+      
+      // Prevent multiple simultaneous openings
+      if (tokenBrowserLoader.isShowing) {
+        console.log('fa-token-browser | App is already loading, please wait...');
+        return;
+      }
+      
+      // Show loading indicator
+      tokenBrowserLoader.show();
+      
+      try {
+        // Create and render new app
+        const app = new TokenBrowserApp();
+        await app.render(true);
+        
+        // Check if user cancelled during loading
+        if (tokenBrowserLoader.wasCancelled()) {
+          console.log('fa-token-browser | App opened but loading was cancelled, closing...');
+          app.close();
+          return;
+        }
+        
+        // Loading indicator will be hidden by the app's _onRender method
+        // after all initialization is complete
+      } catch (error) {
+        console.error('fa-token-browser | Error opening Token Browser:', error);
+        tokenBrowserLoader.hide();
+        
+        // Show error notification
+        ui.notifications.error(`Failed to open FA Token Browser: ${error.message}`);
       }
     },
     version: TOKEN_BROWSER_VERSION
@@ -171,22 +307,8 @@ Hooks.once('init', async () => {
     }
   });
 
-  // Register Forge bucket preference setting (will be populated dynamically)
-  game.settings.register('fa-token-browser', 'preferredForgeBucket', {
-    name: 'Preferred Forge Storage Bucket',
-    hint: 'Choose which Forge storage bucket to use for token caching. This setting will be populated with your available buckets when you open the FA Token Browser.',
-    scope: 'client', // User-specific since bucket access is user-specific
-    config: true,
-    type: String,
-    default: 'auto',
-    choices: {
-      'auto': 'Auto-detect (will be updated with real bucket names)'
-    },
-    restricted: false, // Allow all users to set their preference
-    onChange: value => {
-      console.log('fa-token-browser | Forge bucket preference changed:', value);
-    }
-  });
+  // Register Forge-specific settings
+  ForgeIntegrationService.registerSettings();
 
   // Register canvas drop handler hook (only once)
   // Use Hooks.once to ensure it's only registered once even during dev reloads
@@ -231,9 +353,11 @@ Hooks.once('init', async () => {
       // Image state
       this._allImages = [];
       this._displayedImages = [];
+      // Track loading state
+      this._isInitialLoad = true;
       
       // Update Forge bucket choices when app opens
-      this._updateForgeBucketChoices();
+      forgeIntegration.updateForgeBucketChoices();
     }
 
     static DEFAULT_OPTIONS = {
@@ -356,6 +480,23 @@ Hooks.once('init', async () => {
       this._setupHoverPreviews();
       // Setup drag and drop functionality
       this._setupDragAndDrop();
+      
+      // Hide loading indicator when app is fully rendered (only on initial load)
+      if (this._isInitialLoad) {
+        this._isInitialLoad = false;
+        // Check if user cancelled before hiding loading indicator
+        if (tokenBrowserLoader.wasCancelled()) {
+          console.log('fa-token-browser | Render completed but loading was cancelled');
+          tokenBrowserLoader.hide();
+          // Close the app since user cancelled
+          setTimeout(() => this.close(), 50);
+          return;
+        }
+        // Use a small delay to ensure all UI elements are fully rendered
+        setTimeout(() => {
+          tokenBrowserLoader.hide();
+        }, 100);
+      }
     }
 
     /**
@@ -525,41 +666,7 @@ Hooks.once('init', async () => {
       headerContent.appendChild(authContainer);
     }
 
-    /**
-     * Update Forge bucket choices in module settings with real bucket names
-     * @private
-     */
-    async _updateForgeBucketChoices() {
-      try {
-        // Only update if we're on Forge and have access to bucket data
-        if (!window.ForgeVTTFilePickerCore) {
-          return;
-        }
 
-        // Get available buckets
-        const buckets = await window.ForgeVTTFilePickerCore.getForgeVTTBucketsAsync();
-        if (!buckets || buckets.length === 0) {
-          return;
-        }
-
-        // Build new choices object with real bucket names
-        const choices = { 'auto': 'Auto-detect best bucket' };
-        
-        buckets.forEach((bucket, index) => {
-          choices[index.toString()] = bucket.label;
-        });
-
-        // Update the setting definition
-        const setting = game.settings.settings.get('fa-token-browser.preferredForgeBucket');
-        if (setting) {
-          setting.choices = choices;
-          console.info('fa-token-browser | Updated Forge bucket choices:', Object.values(choices));
-        }
-
-      } catch (error) {
-        console.warn('fa-token-browser | Failed to update Forge bucket choices:', error);
-      }
-    }
 
     /**
      * Clean up drag and drop event listeners
@@ -576,8 +683,30 @@ Hooks.once('init', async () => {
       try {
         const customTokenFolder = game.settings.get('fa-token-browser', 'customTokenFolder') || '';
         
+        // Update loading progress during initial load
+        if (this._isInitialLoad) {
+          tokenBrowserLoader.updateText('Loading FA Token Browser...', 'Initializing local tokens...');
+        }
+        
+        // Check if loading was cancelled
+        if (this._isInitialLoad && tokenBrowserLoader.wasCancelled()) {
+          console.log('fa-token-browser | Data loading cancelled by user');
+          throw new Error('Loading cancelled by user');
+        }
+        
         // Get combined local and cloud tokens using TokenDataService
         const combinedTokenData = await this.tokenDataService.getCombinedTokens(customTokenFolder, true);
+        
+        // Check again after potentially long cloud token fetch
+        if (this._isInitialLoad && tokenBrowserLoader.wasCancelled()) {
+          console.log('fa-token-browser | Data processing cancelled by user');
+          throw new Error('Loading cancelled by user');
+        }
+        
+        // Update loading progress
+        if (this._isInitialLoad) {
+          tokenBrowserLoader.updateText('Loading FA Token Browser...', 'Processing token data...');
+        }
         
         // Convert TokenData to UI-compatible format for gradual migration
         this._allImages = this.tokenDataService.convertTokenDataForUI(combinedTokenData);
@@ -592,7 +721,10 @@ Hooks.once('init', async () => {
         const localCount = this._allImages.filter(img => img.source === 'local').length;
         const cloudCount = this._allImages.filter(img => img.source === 'cloud').length;
         
-
+        // Update loading progress
+        if (this._isInitialLoad) {
+          tokenBrowserLoader.updateText('Loading FA Token Browser...', `Found ${localCount} local and ${cloudCount} cloud tokens. Finalizing...`);
+        }
         
         const searchContext = this.searchManager.getSearchContext();
         
@@ -613,6 +745,18 @@ Hooks.once('init', async () => {
         };
       } catch (error) {
         console.error("TokenBrowserApp _prepareContext error:", error);
+        
+        // Hide loading indicator on error during initial load
+        if (this._isInitialLoad) {
+          this._isInitialLoad = false;
+          tokenBrowserLoader.hide();
+        }
+        
+        // Don't show error notification if user cancelled
+        if (error.message === 'Loading cancelled by user') {
+          console.log('fa-token-browser | _prepareContext cancelled by user, skipping error display');
+        }
+        
         return { 
           images: [],
           customTokenFolder: '',

@@ -1,7 +1,7 @@
 {
   "id": "fa-token-browser",
   "title": "FA Token Browser",
-  "version": "0.7.5",
+  "version": "0.7.6",
   "compatibility": {
     "minimum": "13",
     "verified": "13"
@@ -21,6 +21,7 @@
     "scripts/token-data-types.js",
     "scripts/local-token-service.js",
     "scripts/token-data-service.js",
+    "scripts/forge-integration.js",
     "scripts/token-cache-manager.js",
     "scripts/cloud-token-service.js",
     "scripts/token-preview-manager.js",
