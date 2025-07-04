@@ -29,6 +29,12 @@ export class EventManager {
     // Size selector handlers
     this._sizeButtonHandlers = [];
     
+    // Main color filter handler
+    this._mainColorFilterHandler = null;
+    
+    // Context menu handler
+    this._contextMenuHandler = null;
+    
     // Drag event handlers
     this._boundDragEndHandler = null;
   }
@@ -174,6 +180,24 @@ export class EventManager {
     });
     this._sizeButtonHandlers = [];
     
+    // Clean up main color filter handler
+    if (this._mainColorFilterHandler) {
+      const { checkbox, handler } = this._mainColorFilterHandler;
+      if (checkbox) {
+        checkbox.removeEventListener('change', handler);
+      }
+      this._mainColorFilterHandler = null;
+    }
+    
+    // Clean up context menu handler
+    if (this._contextMenuHandler) {
+      const { grid, handler } = this._contextMenuHandler;
+      if (grid) {
+        grid.removeEventListener('contextmenu', handler);
+      }
+      this._contextMenuHandler = null;
+    }
+    
     // Clean up drag event handlers
     if (this._boundDragEndHandler) {
       document.removeEventListener('dragend', this._boundDragEndHandler, { capture: true });
@@ -226,6 +250,26 @@ export class EventManager {
   registerSizeButtonHandler(button, handler) {
     button.addEventListener('click', handler);
     this._sizeButtonHandlers.push({ button, handler });
+  }
+
+  /**
+   * Register main color filter checkbox handler for cleanup tracking
+   * @param {HTMLElement} checkbox - The checkbox element
+   * @param {Function} handler - The event handler function
+   */
+  registerMainColorFilterHandler(checkbox, handler) {
+    checkbox.addEventListener('change', handler);
+    this._mainColorFilterHandler = { checkbox, handler };
+  }
+
+  /**
+   * Register context menu handler for cleanup tracking
+   * @param {HTMLElement} grid - The grid element
+   * @param {Function} handler - The event handler function
+   */
+  registerContextMenuHandler(grid, handler) {
+    grid.addEventListener('contextmenu', handler);
+    this._contextMenuHandler = { grid, handler };
   }
 
   /**

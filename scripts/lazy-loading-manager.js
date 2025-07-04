@@ -187,7 +187,7 @@ export class LazyLoadingManager {
       
       // Add cloud token class if applicable
       const isCloudToken = imageData.source === 'cloud';
-      tokenItem.className = isCloudToken ? 'token-item cloud-token' : 'token-item';
+      tokenItem.className = isCloudToken ? 'token-base token-item cloud-token' : 'token-base token-item';
       
       // Set data attributes
       tokenItem.setAttribute('data-path', imageData.path);

@@ -26,11 +26,18 @@ export class ForgeIntegrationService {
       return this.isForgeDetected;
     }
     
-    this.isForgeDetected = window.location.hostname.includes('forge-vtt.com') || 
-                          window.location.hostname.includes('forgevtt.com') ||
-                          (typeof ForgeVTT !== 'undefined' && ForgeVTT.usingTheForge);
-    
+    this.isForgeDetected = ForgeIntegrationService.isRunningOnForge();
     return this.isForgeDetected;
+  }
+
+  /**
+   * Static method to check if we're running on Forge
+   * @returns {boolean}
+   */
+  static isRunningOnForge() {
+    return window.location.hostname.includes('forge-vtt.com') || 
+           window.location.hostname.includes('forgevtt.com') ||
+           (typeof ForgeVTT !== 'undefined' && ForgeVTT.usingTheForge);
   }
 
   /**
@@ -60,8 +67,26 @@ export class ForgeIntegrationService {
    */
   async _initializeForgeData() {
     try {
+      // Wait for ForgeAPI status to be available (crucial for assistant GMs)
+      if (!window.ForgeAPI?.lastStatus) {
+        console.log('fa-token-browser | Waiting for ForgeAPI status...');
+        try {
+          await window.ForgeAPI.status();
+          console.log('fa-token-browser | ForgeAPI status loaded:', window.ForgeAPI.lastStatus);
+        } catch (error) {
+          console.warn('fa-token-browser | Failed to load ForgeAPI status:', error);
+          // Continue with account ID detection even if status fails
+        }
+      }
+      
       // Detect account ID from module icon for URL optimization
       const accountIdDetected = await this._detectForgeAccountId();
+      
+      // Update bucket choices after ForgeAPI is ready
+      if (accountIdDetected && window.ForgeAPI?.lastStatus) {
+        await this.updateForgeBucketChoices();
+      }
+      
       return accountIdDetected;
     } catch (error) {
       console.error('fa-token-browser | Failed to initialize Forge data:', error);
@@ -220,7 +245,7 @@ export class ForgeIntegrationService {
   }
 
   /**
-   * Get available ForgeVTT buckets
+   * Get available ForgeVTT buckets using the official ForgeAPI approach
    * @returns {Array} Array of bucket objects or empty array
    */
   getForgeVTTBuckets() {
@@ -229,21 +254,69 @@ export class ForgeIntegrationService {
     }
     
     try {
-      // Try different ways to access Forge bucket data
-      if (window.ForgeVTTFilePickerCore && window.ForgeVTTFilePickerCore.getForgeVTTBuckets) {
-        return window.ForgeVTTFilePickerCore.getForgeVTTBuckets();
+      console.log('fa-token-browser | Getting ForgeVTT buckets using official API approach...');
+      
+      // Use the same approach as official ForgeVTT implementation
+      const status = window.ForgeAPI?.lastStatus || {};
+      console.log('fa-token-browser | ForgeAPI.lastStatus:', status);
+      
+      const buckets = [];
+      
+      // 1. User's own bucket ("My Assets Library")
+      if (status.user) {
+        console.log('fa-token-browser | Adding user bucket for user:', status.user);
+        buckets.push({
+          label: "My Assets Library",
+          userId: status.user,
+          jwt: null,
+          key: "my-assets"
+        });
       }
       
-      if (window.ForgeVTT_FilePicker && window.ForgeVTT_FilePicker.getForgeVTTBuckets) {
-        return window.ForgeVTT_FilePicker.getForgeVTTBuckets();
+      // 2. Custom API Key bucket (if set)
+      const apiKey = game.settings?.get("forge-vtt", "apiKey");
+      if (apiKey && window.ForgeAPI?.isValidAPIKey(apiKey)) {
+        console.log('fa-token-browser | Adding custom API key bucket');
+        const info = window.ForgeAPI._tokenToInfo(apiKey);
+        buckets.push({
+          label: "Custom API Key",
+          userId: info.id,
+          jwt: apiKey,
+          key: window.ForgeAPI._tokenToHash(apiKey)
+        });
       }
       
-      // Try global ForgeAPI
-      if (window.ForgeAPI && window.ForgeAPI.getBuckets) {
-        return window.ForgeAPI.getBuckets();
+      // 3. Shared buckets from sharedAPIKeys (this is what assistant GMs need!)
+      const sharedAPIKeys = status.sharedAPIKeys || [];
+      console.log('fa-token-browser | Shared API keys found:', sharedAPIKeys.length);
+      
+      for (const sharedKey of sharedAPIKeys) {
+        if (!window.ForgeAPI?.isValidAPIKey(sharedKey)) {
+          console.log('fa-token-browser | Skipping invalid shared key');
+          continue;
+        }
+        
+        const keyHash = window.ForgeAPI._tokenToHash(sharedKey);
+        const info = window.ForgeAPI._tokenToInfo(sharedKey);
+        let name = info.keyName || 'Unknown';
+        
+        // Truncate long names
+        if (name.length > 50) {
+          name = `${name.slice(0, 50)}…`;
+        }
+        
+        console.log('fa-token-browser | Adding shared bucket:', name, 'for user:', info.id);
+        buckets.push({
+          label: `Shared Folder: ${name}`,
+          userId: info.id,
+          jwt: sharedKey,
+          key: keyHash
+        });
       }
       
-      return [];
+      console.log('fa-token-browser | Total buckets found:', buckets.length, buckets);
+      return buckets;
+      
     } catch (error) {
       console.warn('fa-token-browser | Error getting Forge buckets:', error);
       return [];
@@ -271,7 +344,7 @@ export class ForgeIntegrationService {
   }
 
   /**
-   * Get bucket call options for ForgeVTT API calls
+   * Get bucket call options for ForgeVTT API calls (matches official implementation)
    * @returns {Object} Options for bucket API calls
    */
   getBucketCallOptions() {
@@ -284,9 +357,28 @@ export class ForgeIntegrationService {
       return {};
     }
 
-    return {
-      bucket: currentBucket
-    };
+    // Get the bucket object to determine authentication method
+    const buckets = this.getForgeVTTBuckets();
+    const bucketIndex = typeof currentBucket === 'number' ? currentBucket : 
+                       buckets.findIndex(b => b.key === currentBucket);
+    const bucket = buckets[bucketIndex];
+    
+    if (!bucket) {
+      console.warn('fa-token-browser | Unknown bucket for call options:', currentBucket);
+      return {};
+    }
+
+    // Use the same authentication logic as official ForgeVTT
+    if (bucket.key === "my-assets") {
+      // Use cookie-based auth for user's own assets
+      return { cookieKey: true };
+    } else if (bucket.jwt) {
+      // Use JWT token for shared folders
+      return { apiKey: bucket.jwt };
+    }
+
+    // Default case
+    return { bucket: currentBucket };
   }
 
   /**
@@ -301,42 +393,22 @@ export class ForgeIntegrationService {
 
     try {
       console.log('fa-token-browser | Updating Forge bucket choices...');
-      console.log('fa-token-browser | window.ForgeVTT_FilePicker:', !!window.ForgeVTT_FilePicker);
-      console.log('fa-token-browser | window.ForgeVTTFilePickerCore:', !!window.ForgeVTTFilePickerCore);
-      console.log('fa-token-browser | window.ForgeAPI:', !!window.ForgeAPI);
-
-      let forgeCore = null;
-      let buckets = [];
       
-      if (window.ForgeVTTFilePickerCore) {
-        forgeCore = window.ForgeVTTFilePickerCore;
-      } else if (window.ForgeVTT_FilePicker) {
-        forgeCore = window.ForgeVTT_FilePicker;
-      } else if (window.ForgeAPI) {
-        forgeCore = window.ForgeAPI;
-      }
-      
-      if (!forgeCore) {
-        console.log('fa-token-browser | No Forge objects found, skipping bucket detection');
-        return;
+      // Ensure ForgeAPI status is loaded before detecting buckets
+      if (!window.ForgeAPI?.lastStatus) {
+        console.log('fa-token-browser | ForgeAPI.lastStatus not available, calling ForgeAPI.status()...');
+        try {
+          await window.ForgeAPI.status();
+          console.log('fa-token-browser | ForgeAPI.status() completed, lastStatus:', window.ForgeAPI.lastStatus);
+        } catch (statusError) {
+          console.warn('fa-token-browser | Failed to get ForgeAPI status:', statusError);
+          return;
+        }
       }
 
-      console.log('fa-token-browser | Found Forge object, detecting buckets...');
+      // Use our new official API approach
+      const buckets = this.getForgeVTTBuckets();
       
-      // Try different methods to get buckets
-      if (forgeCore.getForgeVTTBucketsAsync) {
-        console.log('fa-token-browser | Trying getForgeVTTBucketsAsync...');
-        buckets = await forgeCore.getForgeVTTBucketsAsync();
-      } else if (forgeCore.getForgeVTTBuckets) {
-        console.log('fa-token-browser | Trying getForgeVTTBuckets...');
-        buckets = forgeCore.getForgeVTTBuckets();
-      } else if (forgeCore.getBuckets) {
-        console.log('fa-token-browser | Trying getBuckets...');
-        buckets = await forgeCore.getBuckets();
-      }
-
-      console.log('fa-token-browser | Found buckets:', buckets);
-
       if (!buckets || buckets.length === 0) {
         console.warn('fa-token-browser | No buckets found');
         return;
@@ -345,7 +417,7 @@ export class ForgeIntegrationService {
       // Build choices object with bucket names
       const choices = {};
       buckets.forEach((bucket, index) => {
-        const bucketName = bucket.name || bucket.label || bucket.title || `Bucket ${index + 1}`;
+        const bucketName = bucket.label || bucket.name || `Bucket ${index + 1}`;
         choices[index] = bucketName;
       });
 
@@ -368,6 +440,12 @@ export class ForgeIntegrationService {
    * Register Forge-specific game settings
    */
   static registerSettings() {
+    // Only register Forge settings when running on Forge
+    if (!ForgeIntegrationService.isRunningOnForge()) {
+      console.log('fa-token-browser | Not running on Forge, skipping Forge-specific settings');
+      return;
+    }
+
     // Register Forge bucket preference setting (will be populated dynamically)
     game.settings.register('fa-token-browser', 'preferredForgeBucket', {
       name: 'Preferred Forge Storage Bucket',
@@ -383,6 +461,8 @@ export class ForgeIntegrationService {
         console.log('fa-token-browser | Forge bucket preference changed:', value);
       }
     });
+    
+    console.log('fa-token-browser | Forge-specific settings registered');
   }
 }
 

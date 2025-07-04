@@ -110,6 +110,66 @@ export function matchesSearchQuery(imageData, query) {
 }
 
 /**
+ * Utility function to detect color variants from token filename
+ * @param {string} filename - The token filename
+ * @returns {Object} Object with baseNameWithoutVariant, colorVariant, and isMainColorVariant
+ */
+export function detectColorVariant(filename) {
+  // Remove file extension
+  const nameWithoutExt = filename.replace(/\.[^/.]+$/, '');
+  
+  // Check if filename ends with _XX pattern (where XX is digits)
+  const colorVariantMatch = nameWithoutExt.match(/^(.+)_(\d+)$/);
+  
+  if (colorVariantMatch) {
+    const baseNameWithoutVariant = colorVariantMatch[1];
+    const colorVariant = colorVariantMatch[2];
+    const isMainColorVariant = colorVariant === '01';
+    
+    return {
+      baseNameWithoutVariant,
+      colorVariant,
+      isMainColorVariant,
+      hasColorVariant: true
+    };
+  }
+  
+  // No color variant detected
+  return {
+    baseNameWithoutVariant: nameWithoutExt,
+    colorVariant: null,
+    isMainColorVariant: false,
+    hasColorVariant: false
+  };
+}
+
+/**
+ * Get all color variants for a given base token name
+ * @param {string} baseNameWithoutVariant - Base token name without color variant
+ * @param {Array} allImages - Array of all image data
+ * @returns {Array} Array of color variant filenames
+ */
+export function getColorVariants(baseNameWithoutVariant, allImages) {
+  const variants = [];
+  
+  for (const image of allImages) {
+    const variantInfo = detectColorVariant(image.filename);
+    if (variantInfo.hasColorVariant && variantInfo.baseNameWithoutVariant === baseNameWithoutVariant) {
+      variants.push({
+        filename: image.filename,
+        colorVariant: variantInfo.colorVariant,
+        imageData: image
+      });
+    }
+  }
+  
+  // Sort by color variant number
+  variants.sort((a, b) => parseInt(a.colorVariant) - parseInt(b.colorVariant));
+  
+  return variants;
+}
+
+/**
  * Search Management System for FA Token Browser
  * Handles search state, filtering, grid regeneration, and result display
  */
@@ -147,12 +207,24 @@ export class SearchManager {
   }
 
   /**
-   * Get images to display based on search state
+   * Get images to display based on search state and filters
    * @param {Array} allImages - All available images
    * @returns {Array}
    */
   getImagesToDisplay(allImages) {
-    return this.isSearchActive ? this._filteredImages : allImages;
+    let imagesToDisplay = this.isSearchActive ? this._filteredImages : allImages;
+    
+    // Apply main color filter if enabled
+    const mainColorOnly = game.settings.get('fa-token-browser', 'mainColorOnly');
+    if (mainColorOnly) {
+      imagesToDisplay = imagesToDisplay.filter(image => {
+        const variantInfo = detectColorVariant(image.filename);
+        // Show tokens that either have no color variant or are main color variant (_01)
+        return !variantInfo.hasColorVariant || variantInfo.isMainColorVariant;
+      });
+    }
+    
+    return imagesToDisplay;
   }
 
   /**
@@ -293,6 +365,8 @@ export class SearchManager {
       console.error('fa-token-browser | Drag & Drop: Error during setup:', error);
     }
     
+    // Update color variants checkbox state based on new grid content
+    this.app._updateColorVariantsCheckboxState();
 
   }
 
@@ -332,7 +406,14 @@ export class SearchManager {
           <p>Try different keywords or check your spelling.</p>
         </div>
       `;
-      this.app.element.querySelector('.token-grid').parentNode.appendChild(noResults);
+      // Insert after token-grid but before footer
+      const tokenGrid = this.app.element.querySelector('.token-grid');
+      const footer = this.app.element.querySelector('.token-browser-footer');
+      if (footer) {
+        footer.parentNode.insertBefore(noResults, footer);
+      } else {
+        tokenGrid.parentNode.appendChild(noResults);
+      }
     } else {
       noResults.querySelector('strong').textContent = this._searchQuery;
       noResults.style.display = 'block';

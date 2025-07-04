@@ -702,6 +702,11 @@ export class TokenDragDropManager {
       const tokenItem = event.target?.closest('.token-item');
       if (!tokenItem) return;
 
+      // Skip drag preparation for right-click (button 2)
+      if (event.button === 2) {
+        return;
+      }
+
       const tokenData = this._getTokenDataFromElement(tokenItem);
       if (tokenData && tokenData.source === 'cloud' && !tokenItem._preloadedDragCanvas) {
         const filename = tokenItem.getAttribute('data-filename');
@@ -1030,6 +1035,12 @@ export class TokenDragDropManager {
       // Make browser window semi-transparent and non-interactive during queued drag
       this._setWindowTransparency(true);
       
+      // Hide variants panel when queued drag actually starts (after download completes)
+      // Delay to ensure drag system is fully initialized
+      setTimeout(() => {
+        this._hideVariantsPanel();
+      }, 200);
+      
       document.addEventListener('mousemove', mouseMoveHandler);
       document.addEventListener('mouseup', mouseUpHandler);
       document.addEventListener('keydown', keyHandler);
@@ -1121,6 +1132,7 @@ export class TokenDragDropManager {
     // Restore window transparency and interactivity with delay to let users see token placement
     setTimeout(() => {
       this._setWindowTransparency(false);
+      // No need to restore variants panel - it's already hidden
     }, 400); // 400ms delay allows users to see where token was created
     
     // Clean up actor drop target styling
@@ -1318,6 +1330,17 @@ export class TokenDragDropManager {
       // Clean up stored values
       delete browserWindow._originalOpacity;
       delete browserWindow._originalPointerEvents;
+    }
+  }
+
+
+  /**
+   * Hide variants panel immediately (helper method)
+   * @private
+   */
+  _hideVariantsPanel() {
+    if (this.parentApp?._hideColorVariantsPanel) {
+      this.parentApp._hideColorVariantsPanel();
     }
   }
 
@@ -1716,16 +1739,6 @@ export class TokenDragDropManager {
     return status;
   }
 
-  /**
-   * Debug helper: Force invalidate all caches (for testing)
-   */
-  debugInvalidateAllCaches() {
-    console.log('fa-token-browser | DEBUG: Force invalidating all drag preview caches');
-    const tokenItems = document.querySelectorAll('.token-item[data-path]');
-    tokenItems.forEach(tokenItem => {
-      this._invalidateTokenCache(tokenItem);
-    });
-  }
 
   /**
    * Handle drop onto actor in the actors sidebar

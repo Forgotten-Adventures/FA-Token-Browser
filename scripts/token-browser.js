@@ -3,7 +3,7 @@ import * as SystemDetection from './system-detection.js';
 import { ActorFactory } from './actor-factory.js';
 import { PatreonAuthService, PatreonOAuthApp } from './patreon-auth-service.js';
 import { parseTokenSize, calcDragPreviewPixelDims } from './geometry.js';
-import { matchesSearchQuery, SearchManager } from './search-engine.js';
+import { matchesSearchQuery, SearchManager, detectColorVariant, getColorVariants } from './search-engine.js';
 
 import { TokenDataService } from './token-data-service.js';
 import { TokenPreviewManager } from './token-preview-manager.js';
@@ -38,15 +38,15 @@ class TokenBrowserLoadingIndicator {
     this.loadingElement.innerHTML = `
       <div class="loading-content">
         <div class="loading-header">
-          <div class="loading-spinner">
-            <i class="fas fa-spinner"></i>
-          </div>
           <button class="loading-cancel" title="Cancel loading">
             <i class="fas fa-times"></i>
           </button>
         </div>
         <div class="loading-text">Loading FA Token Browser...</div>
         <div class="loading-subtext">Fetching cloud tokens and initializing...</div>
+        <div class="loading-spinner">
+          <i class="fas fa-spinner"></i>
+        </div>
       </div>
     `;
     
@@ -242,6 +242,18 @@ Hooks.once('init', async () => {
     }
   });
 
+  // Register main color filter setting (hidden from UI, controlled by checkbox)
+  game.settings.register('fa-token-browser', 'mainColorOnly', {
+    name: 'Show Main Color Variants Only',
+    scope: 'client',
+    config: false, // Hidden from UI - controlled by checkbox
+    type: Boolean,
+    default: true, // Default to main colors only (variants panel mode)
+    restricted: false
+  });
+
+
+
   // Register Patreon authentication data setting (hidden from UI, user-specific)
   // NOTE: Authentication is user-specific because server validates both auth state AND IP address
   // This prevents confusion where users see "authenticated" status but can't access premium tokens
@@ -355,6 +367,8 @@ Hooks.once('init', async () => {
       this._displayedImages = [];
       // Track loading state
       this._isInitialLoad = true;
+      // Color variant panel reference
+      this._activeVariantPanel = null;
       
       // Update Forge bucket choices when app opens
       forgeIntegration.updateForgeBucketChoices();
@@ -447,6 +461,9 @@ Hooks.once('init', async () => {
         this.previewManager.destroy();
       }
       
+      // Clean up color variant panel
+      this._hideColorVariantsPanel();
+      
       super._onClose(options);
     }
 
@@ -472,6 +489,10 @@ Hooks.once('init', async () => {
       this.previewManager.initialize();
       // Activate size selector
       this._activateSizeSelector();
+      // Activate main color filter (pass context for hasColorVariants info)
+      this._activateMainColorFilter(context);
+      // Setup right-click color variant functionality
+      this._setupColorVariantRightClick();
       // Setup simple scroll-based lazy loading
       this.lazyLoadingManager.setupScrollLazyLoading();
       // Activate search functionality
@@ -495,7 +516,7 @@ Hooks.once('init', async () => {
         // Use a small delay to ensure all UI elements are fully rendered
         setTimeout(() => {
           tokenBrowserLoader.hide();
-        }, 100);
+        }, 600);
       }
     }
 
@@ -685,7 +706,7 @@ Hooks.once('init', async () => {
         
         // Update loading progress during initial load
         if (this._isInitialLoad) {
-          tokenBrowserLoader.updateText('Loading FA Token Browser...', 'Initializing local tokens...');
+          tokenBrowserLoader.updateText('Loading FA Token Browser...', 'Initializing local & cloud tokens...');
         }
         
         // Check if loading was cancelled
@@ -723,7 +744,7 @@ Hooks.once('init', async () => {
         
         // Update loading progress
         if (this._isInitialLoad) {
-          tokenBrowserLoader.updateText('Loading FA Token Browser...', `Found ${localCount} local and ${cloudCount} cloud tokens. Finalizing...`);
+          tokenBrowserLoader.updateText('FA Token Browser Ready!', `Found ${localCount} local and ${cloudCount} cloud tokens.`);
         }
         
         const searchContext = this.searchManager.getSearchContext();
@@ -733,6 +754,9 @@ Hooks.once('init', async () => {
         const isAuthenticated = authData && authData.authenticated;
         const userTier = isAuthenticated ? authData.tier : null;
         
+        // Check if color variants are available (simplified logic)
+        const hasColorVariants = this._hasColorVariantsAvailable();
+        
         return { 
           images: this._displayedImages,
           customTokenFolder,
@@ -741,6 +765,8 @@ Hooks.once('init', async () => {
           // Auth context for template
           isAuthenticated,
           userTier,
+          // Color variants availability for template
+          hasColorVariants,
           ...searchContext
         };
       } catch (error) {
@@ -768,7 +794,9 @@ Hooks.once('init', async () => {
           error: error.message,
           // Auth context for error case
           isAuthenticated: false,
-          userTier: null
+          userTier: null,
+          // Color variants availability for error case
+          hasColorVariants: false
         };
       }
     }
@@ -783,8 +811,12 @@ Hooks.once('init', async () => {
         return;
       }
 
-      // Find all token items with this filename
-      const tokenItems = this.element.querySelectorAll(`[data-filename="${filename}"]`);
+      // Find all token items with this filename (main window and variant panels)
+      const mainTokens = this.element.querySelectorAll(`[data-filename="${filename}"]`);
+      const variantTokens = this._activeVariantPanel ? 
+        this._activeVariantPanel.querySelectorAll(`[data-filename="${filename}"]`) : [];
+      
+      const tokenItems = [...mainTokens, ...variantTokens];
       
       tokenItems.forEach(tokenItem => {
         const statusIcon = tokenItem.querySelector('.token-status-icon');
@@ -928,6 +960,549 @@ Hooks.once('init', async () => {
     }
 
     /**
+     * Activate the main color filter checkbox
+     * @param {Object} context - The template context containing hasColorVariants flag
+     */
+    _activateMainColorFilter(context) {
+      const checkbox = this.element.querySelector('#main-color-only');
+      
+      if (!checkbox) return;
+
+      // Get color variants availability from context
+      const hasColorVariants = context?.hasColorVariants ?? false;
+
+      // Load and apply saved main color filter state
+      const savedState = game.settings.get('fa-token-browser', 'mainColorOnly');
+      checkbox.checked = savedState;
+
+      // If no color variants available, disable the checkbox and uncheck it
+      if (!hasColorVariants) {
+        checkbox.disabled = true;
+        checkbox.checked = false;
+        // Also save the disabled state to settings
+        game.settings.set('fa-token-browser', 'mainColorOnly', false);
+        console.log('fa-token-browser | No color variants available, disabling variants checkbox');
+        return;
+      }
+
+      const handler = (event) => {
+        const isChecked = event.target.checked;
+        
+        // Save the new main color filter state to settings
+        game.settings.set('fa-token-browser', 'mainColorOnly', isChecked);
+        
+        // Regenerate the grid with the new filter
+        this.searchManager.regenerateGrid();
+        
+        console.log(`fa-token-browser | Color variants on right click ${isChecked ? 'enabled' : 'disabled'}`);
+      };
+      
+      // Register event handler
+      this.eventManager.registerMainColorFilterHandler(checkbox, handler);
+    }
+
+    /**
+     * Update the checkbox state based on currently available images
+     */
+    _updateColorVariantsCheckboxState() {
+      const checkbox = this.element.querySelector('#main-color-only');
+      if (!checkbox) return;
+
+      const hasColorVariants = this._hasColorVariantsAvailable();
+
+      const label = this.element.querySelector('.main-color-checkbox');
+      
+      if (!hasColorVariants) {
+        checkbox.disabled = true;
+        checkbox.checked = false;
+        if (label) {
+          label.classList.add('disabled');
+        }
+        // Also save the disabled state to settings
+        game.settings.set('fa-token-browser', 'mainColorOnly', false);
+      } else {
+        checkbox.disabled = false;
+        if (label) {
+          label.classList.remove('disabled');
+        }
+        // Restore saved state when variants become available
+        const savedState = game.settings.get('fa-token-browser', 'mainColorOnly');
+        checkbox.checked = savedState;
+      }
+    }
+
+    /**
+     * Check if color variants are available (simplified approach)
+     * @returns {boolean} True if color variants feature should be enabled
+     */
+    _hasColorVariantsAvailable() {
+      // Get authentication status
+      const authData = game.settings.get('fa-token-browser', 'patreon_auth_data');
+      const isAuthenticated = authData && authData.authenticated;
+      
+      // Get local tokens count
+      const localTokenCount = this._allImages.filter(img => img.source === 'local').length;
+      
+      // Color variants are available if:
+      // 1. User is authenticated with Patreon (access to premium tokens with multiple variants), OR
+      // 2. User has local tokens loaded (may have custom variants)
+      const hasVariants = isAuthenticated || localTokenCount > 0;
+      
+      console.log(`fa-token-browser | Color variants check: authenticated=${isAuthenticated}, localTokens=${localTokenCount}, enabled=${hasVariants}`);
+      
+      return hasVariants;
+    }
+
+    /**
+     * Setup right-click color variant functionality
+     */
+    _setupColorVariantRightClick() {
+      const grid = this.element.querySelector('.token-grid');
+      if (!grid) return;
+
+      const contextMenuHandler = (event) => {
+        // Only handle right-click on token items when main color filter is active
+        const mainColorOnly = game.settings.get('fa-token-browser', 'mainColorOnly');
+        if (!mainColorOnly) return;
+
+        const tokenItem = event.target.closest('.token-item');
+        if (!tokenItem) return;
+
+        event.preventDefault();
+        event.stopPropagation();
+
+        // Hide any active preview to prevent it getting stuck
+        this.previewManager.hidePreview();
+
+        const filename = tokenItem.getAttribute('data-filename');
+        if (!filename) return;
+
+        // Detect color variant information
+        const variantInfo = detectColorVariant(filename);
+        if (!variantInfo.hasColorVariant) {
+          ui.notifications.info('This token has no color variants.');
+          return;
+        }
+
+        // Check if variants panel is already open for this same token
+        if (this._activeVariantPanel) {
+          const currentVariantBase = this._activeVariantPanel._baseNameWithoutVariant;
+          if (currentVariantBase === variantInfo.baseNameWithoutVariant) {
+            // Same token - close the panel instead of refreshing
+            this._hideColorVariantsPanel();
+            return;
+          }
+        }
+
+        // Get all color variants for this token
+        const colorVariants = getColorVariants(variantInfo.baseNameWithoutVariant, this._allImages);
+        
+        if (colorVariants.length <= 1) {
+          ui.notifications.info('This token has no other color variants.');
+          return;
+        }
+
+        // Show color variants (expand next to token or fallback to search)
+        this._showColorVariantsExpanded(tokenItem, variantInfo.baseNameWithoutVariant, colorVariants);
+      };
+
+      // Register the context menu handler
+      this.eventManager.registerContextMenuHandler(grid, contextMenuHandler);
+    }
+
+    /**
+     * Show color variants in an expanded view next to the token
+     * @param {HTMLElement} tokenItem - The right-clicked token element
+     * @param {string} baseNameWithoutVariant - Base token name without color variant
+     * @param {Array} colorVariants - Array of color variant data
+     */
+    _showColorVariantsExpanded(tokenItem, baseNameWithoutVariant, colorVariants) {
+      // Remove any existing variant panel
+      this._hideColorVariantsPanel();
+      
+      // Create variant panel
+      const variantPanel = document.createElement('div');
+      variantPanel.className = 'color-variants-panel';
+      variantPanel.innerHTML = `
+        <div class="variant-header">
+          <span class="variant-title">${baseNameWithoutVariant}</span>
+          <button class="variant-close" title="Close">×</button>
+        </div>
+        <div class="variant-grid"></div>
+      `;
+      
+      const variantGrid = variantPanel.querySelector('.variant-grid');
+      
+      // Create thumbnail for each color variant (make them work like real token items)
+      colorVariants.forEach(variant => {
+        const variantItem = document.createElement('div');
+        variantItem.className = 'token-base token-item variant-item';
+        variantItem.setAttribute('data-filename', variant.filename);
+        variantItem.setAttribute('data-path', variant.imageData.path);
+        variantItem.setAttribute('data-source', variant.imageData.source);
+        if (variant.imageData.tier) {
+          variantItem.setAttribute('data-tier', variant.imageData.tier);
+        }
+        variantItem.setAttribute('draggable', 'true');
+        
+        // Store the imageData directly on the element for hover preview
+        // Convert UI format back to TokenData format using the stored _tokenData
+        variantItem._variantImageData = variant.imageData;
+        variantItem._variantTokenData = variant.imageData._tokenData;
+        
+        // Build status icon HTML based on token source and cache status
+        let statusIconHTML = '';
+        if (variant.imageData.source === 'cloud') {
+          if (variant.imageData.isCached) {
+            statusIconHTML = `
+              <div class="token-status-icon cached-cloud" title="Cloud token (cached locally)">
+                <i class="fas fa-cloud-check"></i>
+              </div>`;
+          } else if (variant.imageData.tier === 'premium') {
+            statusIconHTML = `
+              <div class="token-status-icon premium-cloud" title="Premium cloud token">
+                <i class="fas fa-cloud-plus"></i>
+              </div>`;
+          } else {
+            statusIconHTML = `
+              <div class="token-status-icon free-cloud" title="Free cloud token">
+                <i class="fas fa-cloud"></i>
+              </div>`;
+          }
+        } else {
+          statusIconHTML = `
+            <div class="token-status-icon local-storage" title="Local storage">
+              <i class="fas fa-folder"></i>
+            </div>`;
+        }
+
+        variantItem.innerHTML = `
+          <div class="token-thumbnail">
+            <img src="${variant.imageData.url}" alt="${variant.filename}" />
+            <div class="variant-number">${variant.colorVariant}</div>
+          </div>
+          ${statusIconHTML}
+        `;
+        
+        variantGrid.appendChild(variantItem);
+      });
+      
+      // Set up drag & drop and hover previews for variant items
+      this._setupVariantInteractions(variantPanel);
+      
+      // Add close button handler
+      const closeBtn = variantPanel.querySelector('.variant-close');
+      closeBtn.addEventListener('click', () => {
+        this._hideColorVariantsPanel();
+      });
+      
+      // Position panel next to the token
+      this._positionVariantPanel(variantPanel, tokenItem);
+      
+      // Add to document
+      document.body.appendChild(variantPanel);
+      this._activeVariantPanel = variantPanel;
+      
+      // Store the base name for toggle comparison
+      variantPanel._baseNameWithoutVariant = baseNameWithoutVariant;
+      
+      // Show with animation
+      requestAnimationFrame(() => {
+        variantPanel.classList.add('visible');
+      });
+      
+      // Add click outside to close
+      setTimeout(() => {
+        const closeOnClickOutside = (event) => {
+          if (!variantPanel.contains(event.target)) {
+            this._hideColorVariantsPanel();
+            document.removeEventListener('click', closeOnClickOutside);
+          }
+        };
+        document.addEventListener('click', closeOnClickOutside);
+        // Store reference for cleanup
+        variantPanel._clickOutsideHandler = closeOnClickOutside;
+      }, 100);
+    }
+
+    /**
+     * Set up drag & drop and hover interactions for variant items
+     * @param {HTMLElement} variantPanel - The variant panel element
+     */
+    _setupVariantInteractions(variantPanel) {
+      const variantItems = variantPanel.querySelectorAll('.token-item');
+      
+      // Set up drag & drop for each variant item
+      variantItems.forEach(variantItem => {
+        // Register with drag drop manager for proper drag functionality
+        if (this.dragDropManager) {
+          this.dragDropManager.registerTokenWithObserver(variantItem);
+        }
+      });
+
+      // Set up Foundry DragDrop system for the variants grid (same as main window)
+      const variantGrid = variantPanel.querySelector('.variant-grid');
+      if (variantGrid) {
+        // Create DragDrop instance for variants panel using Foundry's system
+        const variantDragDrop = new foundry.applications.ux.DragDrop({
+          dragSelector: '.token-item',
+          dropSelector: null, // We don't handle drops in variants panel
+          permissions: {
+            dragstart: () => true,
+            drop: () => false
+          },
+          callbacks: {
+            dragstart: async (event) => {
+              const variantItem = event.currentTarget;
+              
+              // Override _getTokenDataFromElement temporarily for variant items
+              const originalGetTokenData = this.dragDropManager._getTokenDataFromElement;
+              this.dragDropManager._getTokenDataFromElement = (element) => {
+                if (element === variantItem && variantItem._variantTokenData) {
+                  return variantItem._variantTokenData;
+                }
+                return originalGetTokenData.call(this.dragDropManager, element);
+              };
+              
+              // Use the main drag drop manager's _onDragStart method with variant context
+              try {
+                const result = await this.dragDropManager._onDragStart(event);
+                
+                // Hide variants panel after a short delay to allow drag to start properly
+                // Immediate hiding can interrupt HTML5 drag & drop
+                if (result !== false) {
+                  setTimeout(() => {
+                    this._hideColorVariantsPanel();
+                  }, 100);
+                }
+                
+                return result;
+              } finally {
+                // Restore original method
+                this.dragDropManager._getTokenDataFromElement = originalGetTokenData;
+              }
+            }
+          }
+        });
+        
+        // Bind the DragDrop system to the variants grid
+        variantDragDrop.bind(variantGrid);
+        
+        // Store reference for cleanup
+        variantPanel._variantDragDrop = variantDragDrop;
+        
+        // Set up hover previews AND drag preloading using the same system as main grid
+        const mouseEnterHandler = (event) => {
+          const tokenItem = event.target?.closest('.token-item');
+          if (!tokenItem) return;
+          
+          // Prevent multiple triggers on the same token
+          if (tokenItem._previewActive) return;
+          tokenItem._previewActive = true;
+
+          // Cancel any pending cleanup since user is hovering again
+          if (tokenItem._cleanupTimeout) {
+            this.eventManager.clearTimeout(tokenItem._cleanupTimeout);
+            tokenItem._cleanupTimeout = null;
+          }
+
+          // Override _getTokenDataFromElement temporarily for preloading
+          const originalGetTokenData = this.dragDropManager._getTokenDataFromElement;
+          this.dragDropManager._getTokenDataFromElement = (element) => {
+            if (element === tokenItem && tokenItem._variantTokenData) {
+              return tokenItem._variantTokenData;
+            }
+            return originalGetTokenData.call(this.dragDropManager, element);
+          };
+          
+          // Start preloading immediately but don't enable dragging yet (same as main grid)
+          this.dragDropManager.preloadDragImage(tokenItem).catch(error => {
+            console.warn('fa-token-browser | Failed to preload drag image in variant panel:', error);
+          }).finally(() => {
+            // Check if preload is ready and enable dragging BEFORE restoring the override
+            // This ensures _getTokenDataFromElement works correctly for cached token detection
+            this.dragDropManager.checkAndEnableDragging(tokenItem);
+            
+            
+            // Restore original method
+            this.dragDropManager._getTokenDataFromElement = originalGetTokenData;
+          });
+          
+          const img = tokenItem.querySelector('img');
+          if (!img) return;
+          
+          // Get TokenData for enhanced preview - use stored variant TokenData or fallback to search
+          let tokenData = tokenItem._variantTokenData;
+          if (!tokenData) {
+            const filename = tokenItem.getAttribute('data-filename');
+            const uiToken = this._allImages?.find(token => token.filename === filename);
+            tokenData = uiToken ? this.tokenDataService.getTokenDataFromUIObject(uiToken) : null;
+          }
+          
+          this.previewManager.showPreviewWithDelay(img, tokenItem, 400, tokenData);
+        };
+
+        const mouseLeaveHandler = (event) => {
+          const tokenItem = event.target?.closest('.token-item');
+          if (!tokenItem) return;
+          
+          // Reset preview flag
+          tokenItem._previewActive = false;
+
+          // Use preview manager to hide preview
+          this.previewManager.hidePreview();
+
+          // Clean up old-style pre-loaded drag image (for backward compatibility)
+          if (tokenItem._preloadedDragImage) {
+            delete tokenItem._preloadedDragImage;
+          }
+
+          // Clean up preloaded canvas after a delay (user might come back)
+          if (tokenItem._cleanupTimeout) {
+            this.eventManager.clearTimeout(tokenItem._cleanupTimeout);
+          }
+          
+          tokenItem._cleanupTimeout = this.eventManager.createTimeout(() => {
+            this.dragDropManager.cleanupTokenPreload(tokenItem);
+          }, 5000); // Clean up after 5 seconds of not hovering
+        };
+
+        variantGrid.addEventListener('mouseenter', mouseEnterHandler, true);
+        variantGrid.addEventListener('mouseleave', mouseLeaveHandler, true);
+        
+        // Store handlers for cleanup
+        variantPanel._mouseEnterHandler = mouseEnterHandler;
+        variantPanel._mouseLeaveHandler = mouseLeaveHandler;
+      }
+    }
+
+    /**
+     * Position the variant panel next to the token
+     * @param {HTMLElement} variantPanel - The variant panel element
+     * @param {HTMLElement} tokenItem - The token element
+     */
+    _positionVariantPanel(variantPanel, tokenItem) {
+      const tokenRect = tokenItem.getBoundingClientRect();
+      const viewportWidth = window.innerWidth;
+      const viewportHeight = window.innerHeight;
+      
+      // Default positioning to the right of the token
+      let left = tokenRect.right + 10;
+      let top = tokenRect.top;
+      
+      // Get more accurate panel dimensions
+      const panelWidth = 300; // Fixed by CSS max-width
+      // Estimate height based on number of variants (header + grid + padding)
+      const variantCount = variantPanel.querySelectorAll('.variant-item').length;
+      const itemsPerRow = Math.floor(panelWidth / 120); // ~120px per item including gap
+      const rows = Math.ceil(variantCount / itemsPerRow);
+      const panelHeight = Math.min(400, 80 + (rows * 120)); // Header + rows, max 400px
+      
+      if (left + panelWidth > viewportWidth - 20) {
+        // Position to the left of the token
+        left = tokenRect.left - panelWidth - 10;
+      }
+      
+      // If still off-screen, center it
+      if (left < 20) {
+        left = Math.max(20, (viewportWidth - panelWidth) / 2);
+      }
+      
+      // Adjust vertical position if needed (like hover previews)
+      if (top + panelHeight > viewportHeight - 20) {
+        // Keep at same level but constrain bottom edge to viewport
+        // Add extra buffer for header and scrollbar visibility
+        top = Math.max(20, viewportHeight - panelHeight - 70);
+      }
+      
+      variantPanel.style.left = `${left}px`;
+      variantPanel.style.top = `${top}px`;
+    }
+
+    /**
+     * Hide the color variants panel
+     */
+    _hideColorVariantsPanel() {
+      if (this._activeVariantPanel) {
+        // Store reference to current panel before clearing the active reference
+        const panelToRemove = this._activeVariantPanel;
+        this._activeVariantPanel = null; // Clear immediately to prevent race conditions
+        
+        // Clean up event handlers
+        const variantGrid = panelToRemove.querySelector('.variant-grid');
+        if (variantGrid && panelToRemove._mouseEnterHandler) {
+          variantGrid.removeEventListener('mouseenter', panelToRemove._mouseEnterHandler, true);
+          variantGrid.removeEventListener('mouseleave', panelToRemove._mouseLeaveHandler, true);
+        }
+        
+        // Clean up drag drop registrations
+        const variantItems = panelToRemove.querySelectorAll('.token-item');
+        variantItems.forEach(item => {
+          if (this.dragDropManager) {
+            this.dragDropManager.cleanupTokenPreload(item);
+          }
+        });
+        
+        // Clean up Foundry DragDrop instance
+        if (panelToRemove._variantDragDrop) {
+          // Note: Foundry's DragDrop doesn't have an explicit cleanup method
+          // but removing the reference should be sufficient
+          panelToRemove._variantDragDrop = null;
+        }
+        
+        // Remove click outside handler if it exists
+        if (panelToRemove._clickOutsideHandler) {
+          document.removeEventListener('click', panelToRemove._clickOutsideHandler);
+          panelToRemove._clickOutsideHandler = null;
+        }
+        
+        // Hide with animation
+        panelToRemove.classList.remove('visible');
+        
+        // Remove from DOM after animation
+        setTimeout(() => {
+          if (panelToRemove && panelToRemove.parentNode) {
+            panelToRemove.parentNode.removeChild(panelToRemove);
+          }
+        }, 300);
+      }
+    }
+
+
+
+    /**
+     * Show color variants by populating the search field (fallback method)
+     * @param {string} baseNameWithoutVariant - Base token name without color variant
+     * @param {Array} colorVariants - Array of color variant data
+     */
+    _showColorVariants(baseNameWithoutVariant, colorVariants) {
+      const searchInput = this.element.querySelector('#token-search');
+      if (!searchInput) return;
+
+      // Clear the main color filter temporarily to show all variants
+      const checkbox = this.element.querySelector('#main-color-only');
+      if (checkbox) {
+        checkbox.checked = false;
+        game.settings.set('fa-token-browser', 'mainColorOnly', false);
+      }
+
+      // Populate search with base name (this will show all variants)
+      searchInput.value = baseNameWithoutVariant;
+      
+      // Update UI state
+      const wrapper = this.element.querySelector('.search-input-wrapper');
+      if (wrapper) {
+        wrapper.classList.add('has-text');
+      }
+      
+      // Perform the search
+      this.searchManager.performSearch(baseNameWithoutVariant);
+      
+      // Show notification
+      ui.notifications.info(`Showing ${colorVariants.length} color variants for "${baseNameWithoutVariant}"`);
+    }
+
+    /**
      * Setup hover previews for token images
      */
     _setupHoverPreviews() {
@@ -1043,7 +1618,7 @@ Hooks.once('init', async () => {
 });
 
 
-Hooks.on('renderActorDirectory', (app, html) => {
+Hooks.on('renderActorDirectory', (_, html) => {
     // Remove any existing token browser buttons to prevent duplicates
     $(html).find('.token-browser-btn').remove();
     
