@@ -379,14 +379,18 @@ export class SearchManager {
       const imagesToDisplay = this.getImagesToDisplay(this.app._allImages);
       const hasMore = this.app._displayedImages.length < imagesToDisplay.length;
       
+      // Check if main color filter is applied for better wording
+      const mainColorOnly = game.settings.get('fa-token-browser', 'mainColorOnly');
+      const tokenLabel = mainColorOnly ? 'unique tokens' : 'tokens';
+      
       if (this.isSearchActive) {
         statsElement.textContent = hasMore 
-          ? `${this.app._displayedImages.length} of ${imagesToDisplay.length} results shown (${this.app._allImages.length} total)`
-          : `${imagesToDisplay.length} results found (${this.app._allImages.length} total)`;
+          ? `${this.app._displayedImages.length} of ${imagesToDisplay.length} found results shown`
+          : `${imagesToDisplay.length} results found`;
       } else {
         statsElement.textContent = hasMore 
-          ? `${this.app._displayedImages.length} of ${this.app._allImages.length} tokens loaded`
-          : `${this.app._allImages.length} tokens found`;
+          ? `${this.app._displayedImages.length} of ${imagesToDisplay.length} ${tokenLabel} loaded`
+          : `${imagesToDisplay.length} ${tokenLabel} found`;
       }
     }
   }
@@ -455,11 +459,16 @@ export class SearchManager {
   getSearchContext() {
     const imagesToDisplay = this.getImagesToDisplay(this.app._allImages);
     
+    // Check if main color filter is applied for better wording
+    const mainColorOnly = game.settings.get('fa-token-browser', 'mainColorOnly');
+    const tokenLabel = mainColorOnly ? 'unique tokens' : 'tokens';
+    
     return {
       searchQuery: this._searchQuery,
       totalImages: imagesToDisplay.length,
       hasMore: this.app._displayedImages.length < imagesToDisplay.length,
-      isSearchActive: this.isSearchActive
+      isSearchActive: this.isSearchActive,
+      tokenLabel: tokenLabel
     };
   }
 
