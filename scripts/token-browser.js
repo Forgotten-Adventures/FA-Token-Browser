@@ -126,10 +126,10 @@ Hooks.once('init', async () => {
   window.faTokenBrowser = {
     ...window.faTokenBrowser, // Preserve existing properties like PatreonAuthService, PatreonOAuthApp
     openTokenBrowser: async () => {
-      const existingApp = Object.values(foundry.applications.instances).find(app => app.id === 'token-browser-app');
+      const existingApp = foundry.applications.instances.get('token-browser-app');
       if (existingApp) {
         existingApp.maximize();
-        existingApp.bringToTop();
+        existingApp.bringToFront();
         return;
       }
       
@@ -281,43 +281,6 @@ Hooks.once('init', async () => {
     }
   });
 
-  // Register max cache size setting
-  game.settings.register('fa-token-browser', 'maxCacheSize', {
-    name: 'Maximum Cache Size (MB)',
-    hint: 'Maximum size of token cache in megabytes. Set to 0 for unlimited cache size. Older files will be deleted when limit is exceeded.',
-    scope: 'world',
-    config: true,
-    type: Number,
-    default: 500,
-    range: {
-      min: 0,
-      max: 5000,
-      step: 50
-    },
-    restricted: true,
-    onChange: value => {
-      console.log('fa-token-browser | Max Cache Size setting changed:', value === 0 ? 'unlimited' : `${value} MB`);
-    }
-  });
-
-  // Register max cache age setting
-  game.settings.register('fa-token-browser', 'maxCacheAge', {
-    name: 'Maximum Cache Age (Days)',
-    hint: 'Maximum age of cached tokens in days. Set to 0 to keep files indefinitely. Older files will be automatically deleted.',
-    scope: 'world',
-    config: true,
-    type: Number,
-    default: 7,
-    range: {
-      min: 0,
-      max: 365,
-      step: 1
-    },
-    restricted: true,
-    onChange: value => {
-      console.log('fa-token-browser | Max Cache Age setting changed:', value === 0 ? 'unlimited' : `${value} days`);
-    }
-  });
 
   // Register Forge-specific settings
   ForgeIntegrationService.registerSettings();
@@ -1610,6 +1573,7 @@ Hooks.once('init', async () => {
       const grid = this.element.querySelector('.token-grid');
       this.dragDropManager.initialize(grid);
     }
+
 
     
 

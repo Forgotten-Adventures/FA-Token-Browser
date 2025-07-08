@@ -221,9 +221,7 @@ export class CloudTokenService {
         
         // Method 3: Check all ApplicationV2 instances
         if (!browserWindow) {
-          const tokenBrowserInstance = Object.values(foundry.applications.instances).find(app => 
-            app.id === 'token-browser-app' || app.constructor.name === 'TokenBrowserApp'
-          );
+          const tokenBrowserInstance = foundry.applications.instances.get('token-browser-app');
           if (tokenBrowserInstance?.element) {
             browserWindow = tokenBrowserInstance.element;
             tokenBrowser = tokenBrowserInstance;
@@ -234,9 +232,7 @@ export class CloudTokenService {
         if (browserWindow && !tokenBrowser) {
           const appId = browserWindow.dataset?.appid || browserWindow.id;
           if (appId) {
-            tokenBrowser = Object.values(foundry.applications.instances).find(app => 
-              app.id === appId || app.id === 'token-browser-app'
-            );
+            tokenBrowser = foundry.applications.instances.get('token-browser-app');
           }
         }
         

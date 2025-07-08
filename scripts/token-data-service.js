@@ -323,15 +323,6 @@ export class TokenDataService {
   }
 
 
-
-  /**
-   * Get cache statistics
-   * @returns {Promise<Object>} Cache statistics
-   */
-  async getCacheStats() {
-    return await this.cacheManager.getCacheStats();
-  }
-
   /**
    * Clear token cache
    * @returns {Promise<void>}

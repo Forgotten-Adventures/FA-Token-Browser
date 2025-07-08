@@ -1283,9 +1283,7 @@ export class TokenDragDropManager {
     
     // Method 4: Check all ApplicationV2 instances
     if (!browserWindow) {
-      const tokenBrowserInstance = Object.values(foundry.applications.instances).find(app => 
-        app.id === 'token-browser-app' || app.constructor.name === 'TokenBrowserApp'
-      );
+      const tokenBrowserInstance = foundry.applications.instances.get('token-browser-app');
       if (tokenBrowserInstance?.element) {
         browserWindow = tokenBrowserInstance.element;
       }
