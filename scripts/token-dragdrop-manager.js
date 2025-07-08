@@ -1984,7 +1984,8 @@ export class TokenDragDropManager {
         scaleY: tokenSize.scale
       },
       width: tokenSize.gridWidth,
-      height: tokenSize.gridHeight
+      height: tokenSize.gridHeight,
+      lockRotation: false // Uncheck "Lock Artwork Rotation" since our tokens are top-down style
     };
     
     // Apply system-specific sizing logic
@@ -2096,8 +2097,12 @@ export class TokenDragDropManager {
       // Create listener functions
       const dragoverHandler = (event) => {
         // Only respond if there's an active token browser drag
-        // Check if any token in our browser is currently being dragged
-        const isDraggingFromTokenBrowser = document.querySelector('.token-item.dragging') !== null;
+        // Check multiple indicators since variant panel may be hidden during drag
+        const isDraggingFromTokenBrowser = 
+          document.querySelector('.token-item.dragging') !== null || // Token with dragging class
+          event.dataTransfer?.types?.includes('text/plain') || // Has our drag data
+          document.querySelector('.token-browser-app[style*="opacity: 0.125"]') !== null || // Browser window is transparent (indicates active drag)
+          document.querySelector('.color-variants-panel .token-item.dragging') !== null; // Variant panel token being dragged (before panel cleanup)
         
         if (!isDraggingFromTokenBrowser) {
           return;
