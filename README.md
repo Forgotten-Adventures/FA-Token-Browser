@@ -1,0 +1,131 @@
+# FA Token Browser
+
+A specialized token browser for Foundry VTT designed specifically for Forgotten Adventures tokens. Built around FA's token collection and cloud service, this module provides an easy and efficient way to browse, search, and use FA tokens directly in your Foundry VTT games.
+
+![Foundry VTT v13](https://img.shields.io/badge/Foundry%20VTT-v13+-green)
+![Version](https://img.shields.io/badge/version-0.8.4-blue)
+
+## Features
+
+### 🎯 **Core Functionality**
+- **Unified Token Browser**: Browse both local and cloud tokens in a single interface
+- **Advanced Search**: Powerful search engine with filtering capabilities
+- **Drag & Drop**: Seamless token placement directly onto actors and scenes
+- **Color Variants**: Browse and select from multiple color variants for each token
+- **Thumbnail Sizes**: Adjustable thumbnail sizes (small, medium, large) for optimal viewing
+
+### ☁️ **Cloud Integration**
+- **Free Tokens**: Immediate access to our complete gallery of our Free tokens with no additonal setup
+- **Patreon Authentication**: Secure OAuth integration for premium token access (and color variants)
+- **Premium Token Access**: Unlock exclusive tokens with Patreon Adventurer tier ($7+) or higher
+- **Smart Caching**: Intelligent caching system for improved performance
+- **ForgeVTT Optimized**: Special optimizations for ForgeVTT environments (WIP)
+
+### 🎨 **User Experience**
+- **Responsive Design**: Works seamlessly across different screen sizes
+- **Performance Optimized**: Lazy loading and efficient memory management
+- **Intuitive Interface**: Clean, modern UI following Foundry VTT design patterns
+- **Real-time Updates**: Live token counts and authentication status
+
+## Installation
+
+### Method 1: Install URL (Recommended)
+1. Open Foundry VTT and navigate to **Add-on Modules**
+2. Click **Install Module**
+3. Enter the following URL:
+   ```
+   https://raw.githubusercontent.com/Forgotten-Adventures/FA-Token-Browser/main/module.json
+   ```
+4. Click **Install**
+
+### Method 2: Manual Installation
+1. Download the [latest zip](https://github.com/Forgotten-Adventures/FA-Token-Browser/raw/main/fa-token-browser.zip)
+2. Extract the ZIP file to your Foundry VTT `modules` folder
+3. Restart Foundry VTT
+4. Enable the module in your world settings
+
+## Usage
+
+### Getting Started
+1. **Enable the Module**: Go to your world settings and enable "FA Token Browser"
+2. **Access the Browser**: Use the "FA Token Browser" at the bottom of "Actors" panel
+3. **Browse Tokens**: Use the search bar to find specific tokens or simply scroll!
+
+### Cloud Token Access
+1. **Connect Patreon**: Click the Patreon connect button in the token browser
+2. **Authenticate**: Complete the OAuth process in your browser
+3. **Access Premium Content**: Once authenticated, premium tokens will be available
+4. **Requirements**: Must be a Patreon supporter at Adventurer tier ($7) or higher
+
+### Token Management
+- **Preview**: Hover over any token to see a larger preview with detailed info as well as correct size/scale grid representation.
+- **Drag & Drop**: Drag tokens directly onto actors or scenes
+- **Color Variants**: Right Click on a token to view available color variants (When color variants available and option selected)
+- **Search Filters**: Use the search bar to filter by name, type, or other criteria, supports AND OR NOT terms
+- **Thumbnail Size**: Adjust the thumbnail size using the size selector
+
+## Requirements
+
+- **Foundry VTT**: Version 13 or higher
+- **Game Systems**: Tested with 5ednd, pf1 and pf2e
+- **Internet Connection**: Required for cloud token access and Patreon authentication
+- **Patreon Account**: Required for premium token access (Adventurer tier $7+)
+
+## Configuration
+
+### Module Settings
+The module includes several configurable options accessible through Foundry VTT's module settings:
+
+- **Custom Token Folder**: Set a local storage folder from which to load tokens
+                            - You can technically load any tokens/images but FA Token Browser is expecting a
+                              certain filename standard for all it's funcionality. 
+- **Actor Creation Folder**: Set name of the folder where new actors (tokens dropped onto a scene) will be created.
+- **Large Previews**: Select to increase size of the hover previews (350px instead of 200px default)
+- **Token Cache Directory**: Directory where cloud tokens are cached(downloaded) locally on drag&drop or actor update.
+
+### ForgeVTT Users (WIP, limited testing, might be buggy in cases)
+Special optimizations are automatically applied for ForgeVTT environments:
+- Optimized cloud storage operations
+- Enhanced URL handling
+- Improved performance for cloud-hosted games
+
+### Support
+For additional support:
+- Check the [Issues page](https://github.com/Forgotten-Adventures/FA-Token-Browser/issues) for known problems
+- Join the [Forgotten Adventures Discord](https://discord.gg/forgottenadventures) for community support
+- Review the [Foundry VTT documentation](https://foundryvtt.com/article/community-modules/) for general module troubleshooting
+
+## Changelog
+
+### Version 0.8.4
+- Refactor Patreon authentication service for improved reliability
+- Fix memory leaks and add proper cleanup methods
+- Enhance OAuth window with clearer instructions
+- Improve UI layout and spacing
+- Update version to 0.8.4
+
+### Version 0.8.3
+- Refactor token browser instance retrieval for improved performance
+- Remove cache deletion functionality (not supported through Foundry directly)
+- Update version to 0.8.3
+
+### Version 0.8.2
+- Modify token drag-and-drop logic for improved handling
+- Update version to 0.8.2
+
+### Version 0.8.1
+- Enhance search engine for improved token display messaging
+- Adjust template for dynamic token labeling based on main color filter setting
+- Update version to 0.8.1
+
+### Version 0.8.0
+- Enhanced event manager with new handlers
+- Implement main color filter for token variants
+- Adjust styles and templates for improved UI/UX
+- Update version to 0.8.0
+
+For a complete changelog, see the [Releases page](https://github.com/Forgotten-Adventures/FA-Token-Browser/releases).
+
+---
+
+**Made with ❤️ by the Forgotten Adventures team** 
