@@ -307,5 +307,22 @@ export class TokenCacheManager {
     return tokenData.filename;
   }
 
+  /**
+   * Destroy the cache manager and clean up all Maps
+   */
+  destroy() {
+    // Clear download promises Map
+    this.downloadPromises.clear();
+    
+    // Clear cache inventory Map  
+    this.cacheInventory.clear();
+    
+    // Clear parent app reference
+    this.parentApp = null;
+    
+    // Mark as uninitialized
+    this.initialized = false;
+  }
+
 
 } 

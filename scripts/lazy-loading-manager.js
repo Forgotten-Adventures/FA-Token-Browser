@@ -11,6 +11,9 @@ export class LazyLoadingManager {
     this._loadBatchSize = 40;
     this._isLoading = false;
     this._lastScrollTime = 0;
+    
+    // MEMORY LEAK FIX: Track created elements for cleanup
+    this._trackedElements = new Set();
   }
 
   /**
@@ -182,6 +185,9 @@ export class LazyLoadingManager {
    * Create DOM elements for image batch with skeleton loading
    */
   createImageElements(images) {
+    // MEMORY LEAK FIX: Clean up any orphaned elements from previous operations
+    this._cleanupOrphanedElements();
+    
     return images.map(imageData => {
       const tokenItem = document.createElement('div');
       
@@ -261,6 +267,9 @@ export class LazyLoadingManager {
         ${tokenStatusIconHTML}
       `;
       
+      // MEMORY LEAK FIX: Track this element for cleanup
+      this._trackedElements.add(tokenItem);
+      
       // Load image immediately - simple approach
       this.loadImageSimple(tokenItem, imageData.url);
       
@@ -277,6 +286,15 @@ export class LazyLoadingManager {
     
     if (!img || !skeleton) return;
     
+    // MEMORY LEAK FIX: Store original cleanup function for this specific image
+    const cleanup = () => {
+      img.onload = null;
+      img.onerror = null;
+      img.src = '';
+      tokenItem._imageCleanup = null; // Clear the cleanup reference
+    };
+    tokenItem._imageCleanup = cleanup;
+    
     img.onload = () => {
       // Smooth transition from skeleton to image
       skeleton.style.opacity = '0';
@@ -285,11 +303,16 @@ export class LazyLoadingManager {
         img.style.display = 'block';
         img.style.opacity = '0';
         
-        // Fade in the loaded image
-        requestAnimationFrame(() => {
+        // MEMORY LEAK FIX: Store animation frame ID for cleanup
+        const animationId = requestAnimationFrame(() => {
           img.style.transition = 'opacity 0.3s ease';
           img.style.opacity = '1';
+          // Clear the stored ID after animation starts
+          if (tokenItem._animationFrameId === animationId) {
+            tokenItem._animationFrameId = null;
+          }
         });
+        tokenItem._animationFrameId = animationId;
       }, 150);
     };
     
@@ -337,9 +360,135 @@ export class LazyLoadingManager {
   }
 
   /**
+   * Clean up all image event handlers and animations in the grid
+   * @private
+   */
+  _cleanupImageHandlers() {
+    // MEMORY LEAK FIX: Clean up orphaned elements first
+    this._cleanupOrphanedElements();
+    
+    if (!this.app || !this.app.element) return;
+    
+    const grid = this.app.element.querySelector('.token-grid');
+    if (!grid) return;
+    
+    // Find all token items and clean up animations
+    const tokenItems = grid.querySelectorAll('.token-item');
+    tokenItems.forEach(tokenItem => {
+      this._cleanupTokenItem(tokenItem);
+    });
+  }
+
+  /**
+   * Clean up a specific token item's image handlers and animations
+   * @param {HTMLElement} tokenItem - The token item to clean up
+   * @private
+   */
+  _cleanupTokenItem(tokenItem) {
+    // MEMORY LEAK FIX: Cancel pending animation frames
+    if (tokenItem._animationFrameId) {
+      cancelAnimationFrame(tokenItem._animationFrameId);
+      tokenItem._animationFrameId = null;
+    }
+    
+    // MEMORY LEAK FIX: Use stored cleanup function if available
+    if (tokenItem._imageCleanup) {
+      tokenItem._imageCleanup();
+    }
+    
+    // MEMORY LEAK FIX: Clear CSS transitions and animations immediately
+    const img = tokenItem.querySelector('img');
+    const skeleton = tokenItem.querySelector('.image-skeleton');
+    
+    if (img) {
+      img.style.transition = 'none'; // Force-stop transitions
+      img.style.opacity = '';
+      img.onload = null;
+      img.onerror = null;
+      img.src = ''; // Stop any pending loads
+    }
+    
+    if (skeleton) {
+      skeleton.style.transition = 'none'; // Force-stop transitions
+      skeleton.style.opacity = '';
+      skeleton.classList.remove('skeleton-error-state'); // Remove animation classes
+    }
+    
+    // MEMORY LEAK FIX: Remove from tracking set
+    this._trackedElements.delete(tokenItem);
+  }
+
+  /**
+   * Clean up image handlers for a specific set of token items
+   * This is called before grid regeneration to prevent memory leaks
+   * @param {NodeList|Array} tokenItems - Token items to clean up
+   */
+  cleanupTokenItems(tokenItems) {
+    if (!tokenItems) return;
+    
+    tokenItems.forEach(tokenItem => {
+      this._cleanupTokenItem(tokenItem);
+    });
+  }
+
+  /**
+   * Clean up any orphaned DOM elements that might be detached but still have handlers
+   * @private
+   */
+  _cleanupOrphanedElements() {
+    // MEMORY LEAK FIX: Clean up tracked elements that are no longer in the DOM
+    for (const tokenItem of this._trackedElements) {
+      // Check if element is still in the DOM
+      if (!document.contains(tokenItem)) {
+        // Element is detached, clean it up
+        this._cleanupTokenItem(tokenItem);
+        // Note: _cleanupTokenItem will remove it from _trackedElements
+        // Continue iterating through the set (safe in JavaScript)
+      }
+    }
+    
+    // Force garbage collection of detached elements by clearing global references
+    // This helps with elements that were created but removed from DOM without proper cleanup
+    if (typeof window !== 'undefined' && window.gc) {
+      // If GC is exposed (dev tools), suggest garbage collection
+      try {
+        window.gc();
+      } catch (e) {
+        // Ignore if GC not available
+      }
+    }
+    
+    // Additional safeguard: look for any img elements in the current DOM that might be orphaned
+    if (this.app && this.app.element) {
+      const grid = this.app.element.querySelector('.token-grid');
+      if (grid) {
+        // Find any img elements without proper parent structure and clean them
+        const orphanedImages = grid.querySelectorAll('img:not(.token-item img)');
+        orphanedImages.forEach(img => {
+          img.onload = null;
+          img.onerror = null;
+          img.src = '';
+          if (img.parentNode) {
+            img.parentNode.removeChild(img);
+          }
+        });
+      }
+    }
+  }
+
+  /**
    * Destroy the lazy loading manager and clean up
    */
   destroy() {
+    // MEMORY LEAK FIX: Clean up all tracked elements first
+    for (const tokenItem of this._trackedElements) {
+      this._cleanupTokenItem(tokenItem);
+    }
+    this._trackedElements.clear();
+    
+    // Clean up all image event handlers to prevent memory leaks
+    this._cleanupImageHandlers();
+    
     this._isLoading = false;
     this._lastScrollTime = 0;
     this.app = null;

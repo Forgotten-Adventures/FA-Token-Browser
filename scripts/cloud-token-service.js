@@ -507,4 +507,15 @@ export class CloudTokenService {
     
     return cleanedCount;
   }
+
+  /**
+   * Destroy the cloud token service and clean up all Maps
+   */
+  destroy() {
+    // Clear URL cache Map
+    this.urlCache.clear();
+    
+    // Clear parent app reference  
+    this.parentApp = null;
+  }
 } 

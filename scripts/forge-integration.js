@@ -155,15 +155,33 @@ export class ForgeIntegrationService {
           // This fallback method is less reliable but kept for compatibility
           const originalURL = testImg.src;
           console.warn('fa-token-browser | Using fallback detection method with limited redirect info');
+          
+          // MEMORY LEAK FIX: Clear handlers after use
+          testImg.onload = null;
+          testImg.onerror = null;
+          testImg.src = '';
+          
           resolve(false); // Fallback method can't access redirect URL
         } catch (error) {
           console.warn('fa-token-browser | Fallback detection error:', error);
+          
+          // MEMORY LEAK FIX: Clear handlers after error
+          testImg.onload = null;
+          testImg.onerror = null;
+          testImg.src = '';
+          
           resolve(false);
         }
       };
       
       testImg.onerror = () => {
         console.warn('fa-token-browser | Fallback icon load failed');
+        
+        // MEMORY LEAK FIX: Clear handlers after error
+        testImg.onload = null;
+        testImg.onerror = null;
+        testImg.src = '';
+        
         resolve(false);
       };
       

@@ -67,9 +67,10 @@ class TokenBrowserLoadingIndicator {
       });
     }
     
-    // Animate in using CSS classes
-    requestAnimationFrame(() => {
+    // Animate in using CSS classes - MEMORY LEAK FIX: Store animation frame ID
+    this._loadingAnimationId = requestAnimationFrame(() => {
       this.loadingElement.classList.add('visible');
+      this._loadingAnimationId = null; // Clear after use
     });
   }
 
@@ -80,6 +81,12 @@ class TokenBrowserLoadingIndicator {
     if (!this.isShowing || !this.loadingElement) return;
     
     this.isShowing = false;
+    
+    // MEMORY LEAK FIX: Cancel any pending animation frame
+    if (this._loadingAnimationId) {
+      cancelAnimationFrame(this._loadingAnimationId);
+      this._loadingAnimationId = null;
+    }
     
     // Animate out using CSS classes
     this.loadingElement.classList.remove('visible');
@@ -399,6 +406,9 @@ Hooks.once('init', async () => {
       // Save current position before closing
       this.eventManager.savePosition();
       
+      // MEMORY LEAK FIX: Force cleanup all CSS animations and transitions first
+      this._forceCleanupAnimations();
+      
       // Clean up event manager (handles all timers and event handlers)
       if (this.eventManager) {
         this.eventManager.destroy();
@@ -426,6 +436,15 @@ Hooks.once('init', async () => {
       
       // Clean up color variant panel
       this._hideColorVariantsPanel();
+      
+      // Clean up token data service (includes cache and cloud service cleanup)
+      if (this.tokenDataService) {
+        this.tokenDataService.destroy();
+      }
+      
+      // MEMORY LEAK FIX: Clear large token arrays to prevent memory leaks
+      this._allImages = [];
+      this._displayedImages = [];
       
       super._onClose(options);
     }
@@ -888,8 +907,10 @@ Hooks.once('init', async () => {
             
             // Brief visual feedback without transitions
             grid.style.opacity = '0.9';
-            requestAnimationFrame(() => {
+            // MEMORY LEAK FIX: Store animation frame ID for cleanup
+            grid._feedbackAnimationId = requestAnimationFrame(() => {
               grid.style.opacity = '1';
+              grid._feedbackAnimationId = null; // Clear after use
             });
             
             // Optional: Subtle notification for first time in performance mode
@@ -905,14 +926,17 @@ Hooks.once('init', async () => {
             grid.style.transform = 'scale(0.98)';
             grid.style.opacity = '0.8';
             
-            // Apply the size change with requestAnimationFrame for better performance
-            requestAnimationFrame(() => {
+            // Apply the size change with requestAnimationFrame for better performance - MEMORY LEAK FIX: Store IDs
+            grid._sizeAnimationId1 = requestAnimationFrame(() => {
               grid.setAttribute('data-thumbnail-size', newSize);
               
               // Batch the restoration
-              requestAnimationFrame(() => {
+              grid._sizeAnimationId2 = requestAnimationFrame(() => {
                 grid.style.transform = 'scale(1)';
                 grid.style.opacity = '1';
+                // Clear both IDs after completion
+                grid._sizeAnimationId1 = null;
+                grid._sizeAnimationId2 = null;
               });
             });
           }
@@ -1169,10 +1193,12 @@ Hooks.once('init', async () => {
       // Store the base name for toggle comparison
       variantPanel._baseNameWithoutVariant = baseNameWithoutVariant;
       
-      // Show with animation
-      requestAnimationFrame(() => {
+      // Show with animation - MEMORY LEAK FIX: Store animation frame ID
+      const showAnimationId = requestAnimationFrame(() => {
         variantPanel.classList.add('visible');
+        variantPanel._showAnimationId = null; // Clear after use
       });
+      variantPanel._showAnimationId = showAnimationId;
       
       // Add click outside to close
       setTimeout(() => {
@@ -1383,6 +1409,55 @@ Hooks.once('init', async () => {
     }
 
     /**
+     * Force cleanup of all CSS animations and transitions 
+     * @private
+     */
+    _forceCleanupAnimations() {
+      if (!this.element) return;
+      
+      // Find all elements with potential animations/transitions and force-stop them
+      const elementsWithAnimations = this.element.querySelectorAll('*');
+      elementsWithAnimations.forEach(element => {
+        // Force-stop any CSS transitions
+        if (element.style.transition || getComputedStyle(element).transition !== 'all 0s ease 0s') {
+          element.style.transition = 'none';
+        }
+        
+        // Force-stop any CSS animations  
+        if (element.style.animation || getComputedStyle(element).animation !== 'none') {
+          element.style.animation = 'none';
+        }
+        
+        // Remove common animation classes
+        element.classList.remove('visible', 'skeleton-error-state', 'preloading');
+        
+        // Cancel any stored animation frame IDs
+        if (element._animationFrameId) {
+          cancelAnimationFrame(element._animationFrameId);
+          element._animationFrameId = null;
+        }
+        if (element._showAnimationId) {
+          cancelAnimationFrame(element._showAnimationId);
+          element._showAnimationId = null;
+        }
+        
+        // Cancel grid-specific animation frames (from size selector)
+        if (element._feedbackAnimationId) {
+          cancelAnimationFrame(element._feedbackAnimationId);
+          element._feedbackAnimationId = null;
+        }
+        if (element._sizeAnimationId1) {
+          cancelAnimationFrame(element._sizeAnimationId1);
+          element._sizeAnimationId1 = null;
+        }
+        if (element._sizeAnimationId2) {
+          cancelAnimationFrame(element._sizeAnimationId2);
+          element._sizeAnimationId2 = null;
+        }
+      });
+    }
+
+    /**
      * Hide the color variants panel
      */
     _hideColorVariantsPanel() {
@@ -1406,6 +1481,35 @@ Hooks.once('init', async () => {
           }
         });
         
+        // MEMORY LEAK FIX: Cancel any pending animation frames
+        if (panelToRemove._showAnimationId) {
+          cancelAnimationFrame(panelToRemove._showAnimationId);
+          panelToRemove._showAnimationId = null;
+        }
+        
+        // MEMORY LEAK FIX: Clear CSS transitions and animations immediately
+        panelToRemove.style.transition = 'none'; // Force-stop panel transitions
+        panelToRemove.classList.remove('visible'); // Remove immediately, no animation
+        
+        // MEMORY LEAK FIX: Clean up image event handlers and animations in variant panel
+        const variantTokenItems = panelToRemove.querySelectorAll('.token-item');
+        variantTokenItems.forEach(tokenItem => {
+          // Cancel token-level animation frames
+          if (tokenItem._animationFrameId) {
+            cancelAnimationFrame(tokenItem._animationFrameId);
+            tokenItem._animationFrameId = null;
+          }
+          
+          const img = tokenItem.querySelector('img');
+          if (img) {
+            img.style.transition = 'none'; // Force-stop transitions
+            img.style.opacity = '';
+            img.onload = null;
+            img.onerror = null;
+            img.src = ''; // Stop any pending loads
+          }
+        });
+        
         // Clean up Foundry DragDrop instance
         if (panelToRemove._variantDragDrop) {
           // Note: Foundry's DragDrop doesn't have an explicit cleanup method
@@ -1419,15 +1523,10 @@ Hooks.once('init', async () => {
           panelToRemove._clickOutsideHandler = null;
         }
         
-        // Hide with animation
-        panelToRemove.classList.remove('visible');
-        
-        // Remove from DOM after animation
-        setTimeout(() => {
-          if (panelToRemove && panelToRemove.parentNode) {
-            panelToRemove.parentNode.removeChild(panelToRemove);
-          }
-        }, 300);
+        // MEMORY LEAK FIX: Remove from DOM immediately (no animation delay)
+        if (panelToRemove && panelToRemove.parentNode) {
+          panelToRemove.parentNode.removeChild(panelToRemove);
+        }
       }
     }
 

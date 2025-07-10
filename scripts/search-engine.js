@@ -326,6 +326,9 @@ export class SearchManager {
     const existingItems = grid.querySelectorAll('.token-item');
     existingItems.forEach(item => this.app.dragDropManager.cleanupTokenPreload(item));
     
+    // MEMORY LEAK FIX: Use lazy loading manager's comprehensive cleanup
+    this.app.lazyLoadingManager.cleanupTokenItems(existingItems);
+    
     // Clear existing items
     grid.innerHTML = '';
     

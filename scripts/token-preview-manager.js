@@ -58,6 +58,16 @@ export class TokenPreviewManager {
    * Clean up all preview resources
    */
   destroy() {
+    // MEMORY LEAK FIX: Cancel any pending animation frames
+    if (this._showAnimationId) {
+      cancelAnimationFrame(this._showAnimationId);
+      this._showAnimationId = null;
+    }
+    if (this._positionAnimationId) {
+      cancelAnimationFrame(this._positionAnimationId);
+      this._positionAnimationId = null;
+    }
+    
     // Clear any pending preview timeout
     if (this._previewTimeout && this._eventManager) {
       this._eventManager.clearTimeout(this._previewTimeout);
@@ -243,9 +253,10 @@ export class TokenPreviewManager {
     // Show dimensions as loading initially
     this._updatePreviewDimensions(0, 0, gridWidth, gridHeight, scale, null, true);
     
-    // Fade in
-    requestAnimationFrame(() => {
+    // Fade in - MEMORY LEAK FIX: Store animation frame ID
+    this._showAnimationId = requestAnimationFrame(() => {
       this._previewElement.classList.add('visible');
+      this._showAnimationId = null; // Clear after use
     });
 
     // Load the preview image and wait for it to complete (Bug Fix #1)
@@ -260,11 +271,12 @@ export class TokenPreviewManager {
       // Apply responsive sizing after image loads
       this._applyResponsivePreviewSize(this._previewImg);
       
-      // Reposition with actual dimensions after sizing
-      requestAnimationFrame(() => {
+      // Reposition with actual dimensions after sizing - MEMORY LEAK FIX: Store animation frame ID
+      this._positionAnimationId = requestAnimationFrame(() => {
         if (this._currentPreviewId === previewId) {
           this._positionPreview(this._previewElement, tokenItem);
         }
+        this._positionAnimationId = null; // Clear after use
       });
       
       // Show the loaded image with fade-in

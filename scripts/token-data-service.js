@@ -476,4 +476,24 @@ export class TokenDataService {
   getTokenDataFromUIObject(uiObject) {
     return uiObject?._tokenData || null;
   }
+
+  /**
+   * Destroy the token data service and clean up all sub-services
+   */
+  destroy() {
+    // Clean up cache manager
+    if (this.cacheManager) {
+      this.cacheManager.destroy();
+    }
+    
+    // Clean up cloud service
+    if (this.cloudService) {
+      this.cloudService.destroy();
+    }
+    
+    // Local service doesn't need cleanup (no persistent state)
+    this.localService = null;
+    this.cacheManager = null;
+    this.cloudService = null;
+  }
 } 

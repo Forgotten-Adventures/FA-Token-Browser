@@ -346,19 +346,6 @@ export class PatreonAuthService {
     }
 
     /**
-     * Setup Patreon authentication UI and handlers for a token browser app
-     * @param {Object} app - The token browser application instance
-     * @deprecated This method is no longer used. Event handlers are now attached directly
-     * in _addPatreonAuthToHeader() for better reliability and timing.
-     */
-    setupPatreonAuthUI(app) {
-        // NOTE: Event handlers are now attached directly when buttons are created
-        // in TokenBrowserApp._addPatreonAuthToHeader() to prevent timing issues
-        // and ensure handlers persist through re-renders.
-        console.warn('fa-token-browser | setupPatreonAuthUI is deprecated - event handlers attached directly in _addPatreonAuthToHeader');
-    }
-
-    /**
      * Update authentication UI based on current status
      * @param {Object} app - The token browser application instance
      */

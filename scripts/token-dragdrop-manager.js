@@ -299,6 +299,9 @@ export class TokenDragDropManager {
           if ((tokenData && tokenData.source === 'cloud') || isRunningOnForge()) {
             sourceImg.crossOrigin = "anonymous";
           }
+          
+          // MEMORY LEAK FIX: Store reference for cleanup
+          tokenItem._preloadSourceImg = sourceImg;
           sourceImg.onload = () => {
             try {
               // Create canvas at the exact preview size
@@ -352,7 +355,12 @@ export class TokenDragDropManager {
               tokenItem.style.cursor = 'grab';
               tokenItem.classList.remove('preloading');
               
-
+              // MEMORY LEAK FIX: Clear source image reference after successful load
+              if (tokenItem._preloadSourceImg) {
+                tokenItem._preloadSourceImg.onload = null;
+                tokenItem._preloadSourceImg.onerror = null;
+                delete tokenItem._preloadSourceImg;
+              }
               
             } catch (error) {
               console.error(`fa-token-browser | Failed to create drag canvas for ${filename}:`, error);
@@ -360,6 +368,13 @@ export class TokenDragDropManager {
               tokenItem.setAttribute('draggable', 'false');
               tokenItem.style.cursor = 'grab';
               tokenItem.classList.remove('preloading');
+              
+              // MEMORY LEAK FIX: Clear source image reference after failed load
+              if (tokenItem._preloadSourceImg) {
+                tokenItem._preloadSourceImg.onload = null;
+                tokenItem._preloadSourceImg.onerror = null;
+                delete tokenItem._preloadSourceImg;
+              }
             }
           };
           
@@ -370,6 +385,13 @@ export class TokenDragDropManager {
             tokenItem.setAttribute('draggable', 'true');
             tokenItem.style.cursor = 'grab';
             tokenItem.classList.remove('preloading');
+            
+            // MEMORY LEAK FIX: Clear source image reference after error
+            if (tokenItem._preloadSourceImg) {
+              tokenItem._preloadSourceImg.onload = null;
+              tokenItem._preloadSourceImg.onerror = null;
+              delete tokenItem._preloadSourceImg;
+            }
           };
           
           sourceImg.src = previewURL;
@@ -429,6 +451,14 @@ export class TokenDragDropManager {
         clearTimeout(tokenItem._cleanupTimeout);
       }
       tokenItem._cleanupTimeout = null;
+    }
+    
+    // MEMORY LEAK FIX: Clean up source image handlers if they exist
+    if (tokenItem._preloadSourceImg) {
+      tokenItem._preloadSourceImg.onload = null;
+      tokenItem._preloadSourceImg.onerror = null;
+      tokenItem._preloadSourceImg.src = ''; // Stop any pending load
+      delete tokenItem._preloadSourceImg;
     }
     
     if (tokenItem._preloadedDragCanvas) {
@@ -1412,10 +1442,23 @@ export class TokenDragDropManager {
       const offsetX = dimensions.width / 2;
       const offsetY = dimensions.height / 2;
       event.dataTransfer.setDragImage(dragImage, offsetX, offsetY);
+      
+      // MEMORY LEAK FIX: Clean up dragImg after use 
+      // Use setTimeout to ensure drag operation has started before cleanup
+      setTimeout(() => {
+        dragImg.src = '';
+        dragImg.alt = '';
+      }, 10);
         
       } catch (corsError) {
         // Canvas is tainted by CORS - skip custom drag image and let browser handle it
         // Don't call setDragImage - let browser use default behavior
+        
+        // MEMORY LEAK FIX: Clean up dragImg even on CORS error
+        setTimeout(() => {
+          dragImg.src = '';
+          dragImg.alt = '';
+        }, 10);
       }
       
     } catch (error) {
@@ -1479,15 +1522,33 @@ export class TokenDragDropManager {
       ctx.imageSmoothingEnabled = true;
       ctx.imageSmoothingQuality = 'high';
           ctx.drawImage(freshImg, 0, 0, width, height);
+          
+          // MEMORY LEAK FIX: Clear handlers after use
+          freshImg.onload = null;
+          freshImg.onerror = null;
+          freshImg.src = '';
+          
           resolve(canvas);
     } catch (err) {
           console.error(`fa-token-browser | Failed to create canvas from fresh image:`, err);
+          
+          // MEMORY LEAK FIX: Clear handlers after error
+          freshImg.onload = null;
+          freshImg.onerror = null;
+          freshImg.src = '';
+          
           resolve(null);
         }
       };
 
       freshImg.onerror = () => {
         console.error(`fa-token-browser | Failed to load image for drag canvas: ${path}`);
+        
+        // MEMORY LEAK FIX: Clear handlers after error
+        freshImg.onload = null;
+        freshImg.onerror = null;
+        freshImg.src = '';
+        
         resolve(null);
       };
 

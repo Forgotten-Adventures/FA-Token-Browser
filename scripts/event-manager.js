@@ -115,9 +115,30 @@ export class EventManager {
    * Clean up all event handlers
    */
   cleanupAllEventHandlers() {
-    // If the application element is already null/removed, nothing to clean
+    // If the application element is already null/removed, only clean non-DOM handlers
     if (!this.app.element) {
-      console.warn('fa-token-browser | EventManager: cleanupAllEventHandlers called after element removal');
+      console.info('fa-token-browser | EventManager: Element removed, cleaning non-DOM handlers only');
+      
+      // Still clean up document-level handlers and stored references
+      if (this._boundDragEndHandler) {
+        document.removeEventListener('dragend', this._boundDragEndHandler, { capture: true });
+        this._boundDragEndHandler = null;
+      }
+      
+      // Clear all stored handler references
+      this._searchInputHandler = null;
+      this._searchKeydownHandler = null;
+      this._searchClearHandler = null;
+      this._sizeButtonHandlers = [];
+      this._mainColorFilterHandler = null;
+      this._contextMenuHandler = null;
+      this._scrollHandler = null;
+      this._handleMouseEnter = null;
+      this._handleMouseLeave = null;
+      this._handleMouseDown = null;
+      this._handleMouseUp = null;
+      this._handleScroll = null;
+      
       return;
     }
 

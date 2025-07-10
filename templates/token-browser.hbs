@@ -31,7 +31,7 @@
   </div>
   
   {{#if images.length}}
-    <div class="token-grid" data-thumbnail-size="medium">
+    <div class="token-grid">
       {{#each images}}
         <div class="token-base token-item {{#if (eq source 'cloud')}}cloud-token{{/if}}" data-path="{{path}}" data-filename="{{filename}}" data-source="{{source}}" {{#if tier}}data-tier="{{tier}}"{{/if}} {{#if (eq source 'cloud')}}draggable="false"{{else}}draggable="true"{{/if}}>
           <div class="token-thumbnail">
