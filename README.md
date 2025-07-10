@@ -61,12 +61,16 @@ A specialized token browser for Foundry VTT designed specifically for Forgotten 
 3. **Access Premium Content**: Once authenticated, premium tokens will be available
 4. **Requirements**: Must be a Patreon supporter at Adventurer tier ($7) or higher
 
+![Image1](images/Foundry_Virtual_Tabletop_SYXXq4sNhN.png)
+
 ### Token Management
 - **Preview**: Hover over any token to see a larger preview with detailed info as well as correct size/scale grid representation.
 - **Drag & Drop**: Drag tokens directly onto actors or scenes
 - **Color Variants**: Right Click on a token to view available color variants (When color variants available and option selected)
 - **Search Filters**: Use the search bar to filter by name, type, or other criteria, supports AND OR NOT terms
 - **Thumbnail Size**: Adjust the thumbnail size using the size selector
+
+https://github.com/user-attachments/assets/f371c6d2-922d-4237-9566-eb08c8c6cd18
 
 ## Requirements
 
