@@ -5,6 +5,8 @@ A specialized token browser for Foundry VTT designed specifically for Forgotten 
 ![Foundry VTT v13](https://img.shields.io/badge/Foundry%20VTT-v13+-green)
 ![Version](https://img.shields.io/badge/version-0.8.4-blue)
 
+![Image1](images/Foundry_Virtual_Tabletop_toEIdP8i6Y.png)
+
 ## Features
 
 ### 🎯 **Core Functionality**
