@@ -51,7 +51,7 @@ A specialized token browser for Foundry VTT designed specifically for Forgotten 
 2. **Access the Browser**: Use the "FA Token Browser" at the bottom of "Actors" panel
 3. **Browse Tokens**: Use the search bar to find specific tokens or simply scroll!
 
-[Image1](images/Foundry_Virtual_Tabletop_9vbnA4s3IE.jpg)
+![Image1](images/Foundry_Virtual_Tabletop_9vbnA4s3IE.jpg)
 
 ### Cloud Token Access
 1. **Connect Patreon**: Click the Patreon connect button in the token browser
