@@ -124,8 +124,6 @@ For additional support:
 - Adjust styles and templates for improved UI/UX
 - Update version to 0.8.0
 
-For a complete changelog, see the [Releases page](https://github.com/Forgotten-Adventures/FA-Token-Browser/releases).
-
 ---
 
 **Made with ❤️ by the Forgotten Adventures team** 
