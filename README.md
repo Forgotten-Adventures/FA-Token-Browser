@@ -101,7 +101,6 @@ Special optimizations are automatically applied for ForgeVTT environments:
 For additional support:
 - Check the [Issues page](https://github.com/Forgotten-Adventures/FA-Token-Browser/issues) for known problems
 - Join the [Forgotten Adventures Discord](https://discord.gg/forgottenadventures) for community support
-- Review the [Foundry VTT documentation](https://foundryvtt.com/article/community-modules/) for general module troubleshooting
 
 ## Changelog
 
