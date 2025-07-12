@@ -219,6 +219,15 @@ export class EventManager {
       this._contextMenuHandler = null;
     }
     
+    // Clean up sort handler
+    if (this._sortHandler) {
+      const { sortSelect, handler } = this._sortHandler;
+      if (sortSelect) {
+        sortSelect.removeEventListener('change', handler);
+      }
+      this._sortHandler = null;
+    }
+    
     // Clean up drag event handlers
     if (this._boundDragEndHandler) {
       document.removeEventListener('dragend', this._boundDragEndHandler, { capture: true });
@@ -313,6 +322,16 @@ export class EventManager {
       this._searchClearHandler = clearHandler;
       clearButton.addEventListener('click', clearHandler);
     }
+  }
+
+  /**
+   * Register sort handler for cleanup tracking
+   * @param {HTMLElement} sortSelect - The sort select element
+   * @param {Function} handler - The event handler function
+   */
+  registerSortHandler(sortSelect, handler) {
+    sortSelect.addEventListener('change', handler);
+    this._sortHandler = { sortSelect, handler };
   }
 
   /**

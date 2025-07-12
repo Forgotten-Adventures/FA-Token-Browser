@@ -1,7 +1,7 @@
 {
   "id": "fa-token-browser",
   "title": "FA Token Browser",
-  "version": "0.8.4",
+  "version": "0.8.6",
   "compatibility": {
     "minimum": "13",
     "verified": "13"
@@ -33,6 +33,6 @@
   "styles": [
     "styles/token-browser.css"
   ],
-  "manifest": "https://raw.githubusercontent.com/Forgotten-Adventures/FA-Token-Browser/refs/heads/main/module.json",
-  "download": "https://github.com/Forgotten-Adventures/FA-Token-Browser/raw/refs/heads/main/fa-token-browser.zip"
+  "manifest": "https://raw.githubusercontent.com/Forgotten-Adventures/FA-Token-Browser/main/module.json",
+  "download": "https://github.com/Forgotten-Adventures/FA-Token-Browser/raw/main/fa-token-browser.zip"
 }

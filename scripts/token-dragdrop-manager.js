@@ -15,6 +15,20 @@ function isRunningOnForge() {
  * Handles drag setup, preview generation, and cleanup
  */
 export class TokenDragDropManager {
+  // Static drag state tracker - shared across all instances
+  static _isTokenBrowserDragActive = false;
+  static _currentDragData = null;
+  
+  /**
+   * Static method to clean up all actor highlights
+   * Called from various cleanup points to ensure highlights are removed
+   */
+  static cleanupActorHighlights() {
+    document.querySelectorAll('.actor-drop-target').forEach(el => {
+      el.classList.remove('actor-drop-target');
+    });
+  }
+  
   constructor(parentApp) {
     this.parentApp = parentApp; // Reference to main TokenBrowserApp
     
@@ -679,6 +693,10 @@ export class TokenDragDropManager {
       tokenItem.classList.add('dragging');
       tokenItem.style.cursor = 'grabbing';
       
+      // Set global drag state for reliable drag detection
+      TokenDragDropManager._isTokenBrowserDragActive = true;
+      TokenDragDropManager._currentDragData = dragData;
+      
       // Make browser window semi-transparent and non-interactive during drag (like PF2e compendium browser)
       this._setWindowTransparency(true);
       
@@ -713,12 +731,24 @@ export class TokenDragDropManager {
     
     // Listen for global dragend to clean up visual feedback
     this._boundDragEndHandler = (event) => {
-      // Check if this drag originated from our token browser
+      // Check if this drag originated from our token browser or if we have an active drag
       const tokenItem = event.target?.closest('.token-item');
-      if (tokenItem && tokenItem.classList.contains('dragging')) {
+      const isOurDrag = (tokenItem && tokenItem.classList.contains('dragging')) || 
+                       TokenDragDropManager._isTokenBrowserDragActive;
+      
+      if (isOurDrag) {
+        // Clear global drag state
+        TokenDragDropManager._isTokenBrowserDragActive = false;
+        TokenDragDropManager._currentDragData = null;
+        
         // Remove visual feedback from original token
-        tokenItem.classList.remove('dragging', 'preloading');
-        tokenItem.style.cursor = 'grab';
+        if (tokenItem) {
+          tokenItem.classList.remove('dragging', 'preloading');
+          tokenItem.style.cursor = 'grab';
+        }
+        
+        // Clean up any remaining actor highlights
+        TokenDragDropManager.cleanupActorHighlights();
         
         // Restore window transparency and interactivity with delay to let users see token placement
         setTimeout(() => {
@@ -880,8 +910,9 @@ export class TokenDragDropManager {
     
     // Additional safety listeners to ensure transparency is always restored
     this._boundDragLeaveHandler = (event) => {
-      // If drag leaves the document entirely, restore transparency with delay
-      if (!event.relatedTarget) {
+      // If drag leaves the document entirely, restore transparency with delay and cleanup highlights
+      if (!event.relatedTarget && TokenDragDropManager._isTokenBrowserDragActive) {
+        TokenDragDropManager.cleanupActorHighlights();
         setTimeout(() => {
           this._setWindowTransparency(false);
         }, 400);
@@ -895,8 +926,19 @@ export class TokenDragDropManager {
       }, 400);
     };
     
+    // Add canvas dragover handler to clean up actor highlights when dragging over canvas
+    this._boundCanvasDragOverHandler = (event) => {
+      // Only respond if we have an active token browser drag and we're over the canvas
+      if (TokenDragDropManager._isTokenBrowserDragActive && 
+          (event.target.closest('#board') || event.target.closest('canvas'))) {
+        // Clean up any actor highlights when dragging over canvas
+        TokenDragDropManager.cleanupActorHighlights();
+      }
+    };
+    
     document.addEventListener('dragleave', this._boundDragLeaveHandler, { capture: true });
     document.addEventListener('drop', this._boundDropHandler, { capture: true });
+    document.addEventListener('dragover', this._boundCanvasDragOverHandler, { capture: true });
     
     // Listen for canvas zoom/pan changes - use a more reliable approach
     // The canvasPan hook might not work as expected, so let's use a different strategy
@@ -1062,6 +1104,14 @@ export class TokenDragDropManager {
         handlers: { mouseMoveHandler, mouseUpHandler, keyHandler }
       };
       
+      // Set global drag state for reliable drag detection
+      TokenDragDropManager._isTokenBrowserDragActive = true;
+      TokenDragDropManager._currentDragData = {
+        type: 'fa-token-browser-token',
+        source: 'token-browser',
+        filename: filename
+      };
+      
       // Make browser window semi-transparent and non-interactive during queued drag
       this._setWindowTransparency(true);
       
@@ -1153,6 +1203,10 @@ export class TokenDragDropManager {
    * Clean up floating preview and event listeners
    */
   _cleanupFloatingPreview(preview, mouseMoveHandler, mouseUpHandler, keyHandler = null) {
+    // Clear global drag state
+    TokenDragDropManager._isTokenBrowserDragActive = false;
+    TokenDragDropManager._currentDragData = null;
+    
     // Reset cursor - remove any remaining loading cursor styles (just in case)
     const loadingStyle = document.getElementById('fa-token-browser-cursor-override');
     if (loadingStyle) {
@@ -1166,10 +1220,7 @@ export class TokenDragDropManager {
     }, 400); // 400ms delay allows users to see where token was created
     
     // Clean up actor drop target styling
-    const actorDropTargets = document.querySelectorAll('.actor-drop-target');
-    actorDropTargets.forEach(el => {
-      el.classList.remove('actor-drop-target');
-    });
+    TokenDragDropManager.cleanupActorHighlights();
     
     // Immediately remove event listeners to prevent further processing
     document.removeEventListener('mousemove', mouseMoveHandler);
@@ -1282,6 +1333,10 @@ export class TokenDragDropManager {
     if (this._boundDropHandler) {
       document.removeEventListener('drop', this._boundDropHandler, { capture: true });
       this._boundDropHandler = null;
+    }
+    if (this._boundCanvasDragOverHandler) {
+      document.removeEventListener('dragover', this._boundCanvasDragOverHandler, { capture: true });
+      this._boundCanvasDragOverHandler = null;
     }
     // Clean up zoom watcher
     this._cleanupZoomWatcher();
@@ -1754,50 +1809,6 @@ export class TokenDragDropManager {
     }
   }
 
-  /**
-   * Debug helper: Get cache status for all visible tokens
-   * @returns {Object} Debug information about cache status
-   */
-  getDebugCacheStatus() {
-    const tokenItems = document.querySelectorAll('.token-item[data-path]');
-    const status = {
-      totalTokens: tokenItems.length,
-      cachedTokens: 0,
-      draggableTokens: 0,
-      preloadingTokens: 0,
-      currentZoom: canvas?.stage?.scale?.x || 1,
-      lastTrackedZoom: this._lastCanvasScale,
-      tokens: []
-    };
-    
-    tokenItems.forEach(tokenItem => {
-      const filename = tokenItem.getAttribute('data-filename');
-      const hasCache = !!tokenItem._preloadedDragCanvas && typeof tokenItem._preloadedDragCanvas !== 'string';
-      const isDraggable = tokenItem.getAttribute('draggable') === 'true';
-      const isPreloading = tokenItem.classList.contains('preloading');
-      
-      if (hasCache) status.cachedTokens++;
-      if (isDraggable) status.draggableTokens++;
-      if (isPreloading) status.preloadingTokens++;
-      
-      let dimensions = null;
-      if (tokenItem._preloadedDragDimensions) {
-        dimensions = `${tokenItem._preloadedDragDimensions.width}x${tokenItem._preloadedDragDimensions.height}`;
-      }
-      
-      status.tokens.push({
-        filename: filename?.substring(0, 30) + (filename?.length > 30 ? '...' : ''),
-        hasCache,
-        isDraggable,
-        isPreloading,
-        dimensions,
-        source: this._getTokenDataFromElement(tokenItem)?.source || 'unknown'
-      });
-    });
-    
-    return status;
-  }
-
 
   /**
    * Handle drop onto actor in the actors sidebar
@@ -2155,15 +2166,8 @@ export class TokenDragDropManager {
       
       // Create listener functions
       const dragoverHandler = (event) => {
-        // Only respond if there's an active token browser drag
-        // Check multiple indicators since variant panel may be hidden during drag
-        const isDraggingFromTokenBrowser = 
-          document.querySelector('.token-item.dragging') !== null || // Token with dragging class
-          event.dataTransfer?.types?.includes('text/plain') || // Has our drag data
-          document.querySelector('.token-browser-app[style*="opacity: 0.125"]') !== null || // Browser window is transparent (indicates active drag)
-          document.querySelector('.color-variants-panel .token-item.dragging') !== null; // Variant panel token being dragged (before panel cleanup)
-        
-        if (!isDraggingFromTokenBrowser) {
+        // Simple check - only respond if we have an active token browser drag
+        if (!TokenDragDropManager._isTokenBrowserDragActive) {
           return;
         }
         
@@ -2193,11 +2197,39 @@ export class TokenDragDropManager {
               targetElement._currentDropTarget = actorElement;
               actorElement.classList.add('actor-drop-target');
             }
+          } else {
+            // Element exists but has no actor ID (like a folder) - clear highlights
+            if (targetElement._currentDropTarget) {
+              targetElement._currentDropTarget.classList.remove('actor-drop-target');
+              targetElement._currentDropTarget = null;
+            }
+          }
+        } else {
+          // No actor element found (hovering over non-actor elements like folders) - clear highlights
+          if (targetElement._currentDropTarget) {
+            targetElement._currentDropTarget.classList.remove('actor-drop-target');
+            targetElement._currentDropTarget = null;
           }
         }
       };
       
       const dragleaveHandler = (event) => {
+        // Only respond if we have an active token browser drag
+        if (!TokenDragDropManager._isTokenBrowserDragActive) {
+          return;
+        }
+        
+        // Check if we're leaving the entire actors panel
+        if (event.target === targetElement && event.relatedTarget && 
+            !targetElement.contains(event.relatedTarget)) {
+          // Leaving the entire actors panel - remove all highlights
+          targetElement.querySelectorAll('.actor-drop-target').forEach(el => {
+            el.classList.remove('actor-drop-target');
+          });
+          targetElement._currentDropTarget = null;
+          return;
+        }
+        
         // Only remove highlighting if we're leaving the entire actor element
         // Check if we're moving to a child element (relatedTarget)
         const actorElement = event.target.closest('.directory-item, .document, [data-entry-id]');

@@ -259,6 +259,21 @@ Hooks.once('init', async () => {
     restricted: false
   });
 
+  // Register sort setting (hidden from UI, controlled by dropdown)
+  game.settings.register('fa-token-browser', 'sortBy', {
+    name: 'Sort Tokens By',
+    scope: 'client',
+    config: false, // Hidden from UI - controlled by dropdown
+    type: String,
+    default: 'default',
+    restricted: false,
+    choices: {
+      'default': 'Default Sorting',
+      'name': 'Sort by Name',
+      'modified': 'Sort by Latest'
+    }
+  });
+
 
 
   // Register Patreon authentication data setting (hidden from UI, user-specific)
@@ -1256,6 +1271,13 @@ Hooks.once('init', async () => {
               // Use the main drag drop manager's _onDragStart method with variant context
               try {
                 const result = await this.dragDropManager._onDragStart(event);
+                
+                // Ensure drag state is set (backup in case main method didn't set it)
+                if (result !== false) {
+                  const { TokenDragDropManager } = await import('./token-dragdrop-manager.js');
+                  TokenDragDropManager._isTokenBrowserDragActive = true;
+                  TokenDragDropManager._currentDragData = result;
+                }
                 
                 // Hide variants panel after a short delay to allow drag to start properly
                 // Immediate hiding can interrupt HTML5 drag & drop

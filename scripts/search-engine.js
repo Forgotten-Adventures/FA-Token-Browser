@@ -217,14 +217,72 @@ export class SearchManager {
     // Apply main color filter if enabled
     const mainColorOnly = game.settings.get('fa-token-browser', 'mainColorOnly');
     if (mainColorOnly) {
-      imagesToDisplay = imagesToDisplay.filter(image => {
+      // Group tokens by their base name (without color variant)
+      const tokenGroups = new Map();
+      
+      imagesToDisplay.forEach(image => {
         const variantInfo = detectColorVariant(image.filename);
-        // Show tokens that either have no color variant or are main color variant (_01)
-        return !variantInfo.hasColorVariant || variantInfo.isMainColorVariant;
+        
+        if (!variantInfo.hasColorVariant) {
+          // Tokens without color variants are always included
+          const key = variantInfo.baseNameWithoutVariant;
+          if (!tokenGroups.has(key)) {
+            tokenGroups.set(key, image);
+          }
+        } else {
+          // For tokens with color variants, keep only the lowest numbered variant available
+          const key = variantInfo.baseNameWithoutVariant;
+          const currentVariant = parseInt(variantInfo.colorVariant, 10);
+          
+          if (!tokenGroups.has(key)) {
+            tokenGroups.set(key, image);
+          } else {
+            const existingImage = tokenGroups.get(key);
+            const existingVariantInfo = detectColorVariant(existingImage.filename);
+            const existingVariant = parseInt(existingVariantInfo.colorVariant, 10);
+            
+            // Replace with lower numbered variant
+            if (currentVariant < existingVariant) {
+              tokenGroups.set(key, image);
+            }
+          }
+        }
       });
+      
+      // Convert back to array
+      imagesToDisplay = Array.from(tokenGroups.values());
     }
     
+    // Apply sorting
+    const sortBy = game.settings.get('fa-token-browser', 'sortBy') || 'default';
+    imagesToDisplay = this.sortImages(imagesToDisplay, sortBy);
+    
     return imagesToDisplay;
+  }
+
+  /**
+   * Sort images based on the selected sort option
+   * @param {Array} images - Array of image objects
+   * @param {string} sortBy - Sort criteria ('default', 'name', 'modified')
+   * @returns {Array} Sorted array of images
+   */
+  sortImages(images, sortBy) {
+    switch (sortBy) {
+      case 'name':
+        return images.sort((a, b) => a.displayName.localeCompare(b.displayName));
+      
+      case 'modified':
+        return images.sort((a, b) => {
+          const dateA = a._tokenData?.metadata?.lastModified || new Date(0);
+          const dateB = b._tokenData?.metadata?.lastModified || new Date(0);
+          return dateB - dateA; // Most recent first
+        });
+      
+      case 'default':
+      default:
+        // Return original order (no sorting)
+        return images;
+    }
   }
 
   /**
@@ -285,6 +343,36 @@ export class SearchManager {
 
     // Register event handlers with the event manager
     this.app.eventManager.registerSearchHandlers(searchInput, clearButton, inputHandler, clearHandler, keydownHandler);
+
+    // Activate sort selector
+    this.activateSort();
+  }
+
+  /**
+   * Activate sort selector functionality
+   */
+  activateSort() {
+    const sortSelect = this.app.element.querySelector('#sort-select');
+    if (!sortSelect) return;
+
+    // Load and apply saved sort option
+    const savedSort = game.settings.get('fa-token-browser', 'sortBy') || 'default';
+    sortSelect.value = savedSort;
+
+    const sortHandler = (event) => {
+      const newSort = event.target.value;
+      
+      // Save the new sort option to settings
+      game.settings.set('fa-token-browser', 'sortBy', newSort);
+      
+      // Regenerate the grid with the new sort
+      this.regenerateGrid();
+      
+      console.log(`fa-token-browser | Sort changed to: ${newSort}`);
+    };
+
+    // Register event handler
+    this.app.eventManager.registerSortHandler(sortSelect, sortHandler);
   }
 
   /**

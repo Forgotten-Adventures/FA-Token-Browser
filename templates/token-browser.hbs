@@ -7,12 +7,19 @@
       <div class="token-browser-search">
       <div class="search-input-wrapper">
         <i class="fas fa-search search-icon"></i>
-        <input type="text" id="token-search" placeholder="Search tokens... (e.g., 'bandit OR pirate sword', 'large fiend', 'creatures NOT dragon', 'cached premium' etc.)" autocomplete="off" />
+        <input type="text" id="token-search" placeholder="Search tokens... (e.g., 'bandit OR pirate', 'large NOT fiend' etc.)" autocomplete="off" />
         <button type="button" class="clear-search" title="Clear search">
           <i class="fas fa-times"></i>
         </button>
       </div>
     </div>
+      <div class="sort-selector">
+        <select id="sort-select">
+          <option value="default">Default Sorting</option>
+          <option value="name">Sort by Name</option>
+          <option value="modified">Sort by Latest</option>
+        </select>
+      </div>
       <div class="thumbnail-size-selector">
         <label>Size:</label>
         <div class="size-icons">
