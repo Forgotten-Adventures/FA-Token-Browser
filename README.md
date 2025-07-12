@@ -59,7 +59,7 @@ A specialized token browser for Foundry VTT designed specifically for Forgotten 
 
 ### Token Management
 - **Preview**: Hover over any token to see a larger preview with detailed info as well as correct size/scale grid representation.
-- **Drag & Drop**: Drag tokens directly onto actors or scenes
+- **Drag & Drop**: Drag tokens directly onto actors (hold shift to skip confirm window) or scenes
 - **Color Variants**: Right Click on a token to view available color variants (When color variants available and option selected)
 - **Search Filters**: Use the search bar to filter by name, type, or other criteria, supports AND OR NOT terms
 - **Thumbnail Size**: Adjust the thumbnail size using the size selector
