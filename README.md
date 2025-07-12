@@ -23,12 +23,6 @@ A specialized token browser for Foundry VTT designed specifically for Forgotten 
 - **Smart Caching**: Intelligent caching system for improved performance
 - **ForgeVTT Optimized**: Special optimizations for ForgeVTT environments (WIP)
 
-### 🎨 **User Experience**
-- **Responsive Design**: Works seamlessly across different screen sizes
-- **Performance Optimized**: Lazy loading and efficient memory management
-- **Intuitive Interface**: Clean, modern UI following Foundry VTT design patterns
-- **Real-time Updates**: Live token counts and authentication status
-
 ## Installation
 
 ### Method 1: Install URL (Recommended)
