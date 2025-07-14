@@ -166,6 +166,54 @@ export class TokenPreviewManager {
   }
 
   /**
+   * Show locked preview for premium tokens when not authenticated
+   * @param {string} filename - Token filename
+   * @param {string} path - Token path
+   * @param {HTMLElement} tokenItem - Token item element
+   */
+
+
+  /**
+   * Check if token preview is allowed based on authentication and tier
+   * @param {TokenData} tokenData - Token data
+   * @returns {boolean} True if preview is allowed
+   */
+  _isPreviewAllowed(tokenData) {
+    if (!tokenData) return false;
+    
+    // Local tokens always allow preview
+    if (tokenData.source === 'local') return true;
+    
+    // For cloud tokens, check authentication and tier
+    if (tokenData.source === 'cloud') {
+      // Free cloud tokens always allow preview
+      if (tokenData.tier === 'free') return true;
+      
+      // Premium cloud tokens require authentication OR being cached locally
+      if (tokenData.tier === 'premium') {
+        // Check if token is cached locally first (with error handling)
+        try {
+          if (this._tokenDataService?.isTokenCached) {
+            const isTokenCached = this._tokenDataService.isTokenCached(tokenData);
+            if (isTokenCached) {
+              return true; // Cached premium tokens are always previewable
+            }
+          }
+        } catch (error) {
+          console.warn('fa-token-browser | Cache check failed in _isPreviewAllowed:', error);
+          // Continue to authentication check on cache failure
+        }
+        
+        // If not cached (or cache check failed), check authentication
+        const authData = game.settings.get('fa-token-browser', 'patreon_auth_data');
+        return authData && authData.authenticated;
+      }
+    }
+    
+    return false;
+  }
+
+  /**
    * Show hover preview for an image (enhanced with TokenData support)
    * @param {HTMLImageElement} img - The source image element
    * @param {HTMLElement} tokenItem - The token item element
@@ -192,6 +240,13 @@ export class TokenPreviewManager {
       path = tokenItem.getAttribute('data-path');
       source = tokenItem.getAttribute('data-source') || 'local';
       tier = tokenItem.getAttribute('data-tier') || null;
+    }
+
+    // Check if preview is allowed for this token
+    const isPreviewAllowed = this._isPreviewAllowed(tokenData);
+    if (!isPreviewAllowed && tokenData && tokenData.source === 'cloud' && tokenData.tier === 'premium') {
+      // No preview for premium tokens when not authenticated
+      return;
     }
 
     // Clear previous image to prevent flicker (Bug Fix #2)

@@ -188,12 +188,36 @@ export class LazyLoadingManager {
     // MEMORY LEAK FIX: Clean up any orphaned elements from previous operations
     this._cleanupOrphanedElements();
     
+    // Check authentication status once for all tokens
+    const authData = game.settings.get('fa-token-browser', 'patreon_auth_data');
+    const isAuthenticated = authData && authData.authenticated;
+    
     return images.map(imageData => {
       const tokenItem = document.createElement('div');
       
       // Add cloud token class if applicable
       const isCloudToken = imageData.source === 'cloud';
-      tokenItem.className = isCloudToken ? 'token-base token-item cloud-token' : 'token-base token-item';
+      const isPremiumToken = isCloudToken && imageData.tier === 'premium';
+      
+      // Check if premium token is cached locally (with error handling)
+      let isTokenCached = false;
+      if (isPremiumToken) {
+        try {
+          if (this.app?.tokenDataService?.isTokenCached) {
+            isTokenCached = this.app.tokenDataService.isTokenCached(imageData);
+          }
+        } catch (error) {
+          console.warn('fa-token-browser | Cache check failed in createImageElements:', error);
+          // Continue with isTokenCached = false
+        }
+      }
+      const isLockedToken = isPremiumToken && !isAuthenticated && !isTokenCached;
+      
+      let className = isCloudToken ? 'token-base token-item cloud-token' : 'token-base token-item';
+      if (isLockedToken) {
+        className += ' locked-token';
+      }
+      tokenItem.className = className;
       
       // Set data attributes
       tokenItem.setAttribute('data-path', imageData.path);
@@ -203,9 +227,15 @@ export class LazyLoadingManager {
         tokenItem.setAttribute('data-tier', imageData.tier);
       }
       
-      // Start with draggable=false, will be enabled after preload completes
-      tokenItem.setAttribute('draggable', 'false');
-      tokenItem.style.cursor = 'grab';
+      // Set draggable state and cursor based on token accessibility
+      if (isLockedToken) {
+        tokenItem.setAttribute('draggable', 'false');
+        tokenItem.style.cursor = 'not-allowed';
+      } else {
+        // Start with draggable=false, will be enabled after preload completes
+        tokenItem.setAttribute('draggable', 'false');
+        tokenItem.style.cursor = 'grab';
+      }
       
       // Build token status icon
       let tokenStatusIconHTML = '';
@@ -215,9 +245,15 @@ export class LazyLoadingManager {
             <i class="fas fa-cloud-check"></i>
           </div>`;
         } else if (imageData.tier === 'premium') {
-          tokenStatusIconHTML = `<div class="token-status-icon premium-cloud" title="Premium cloud token">
-            <i class="fas fa-cloud-plus"></i>
-          </div>`;
+          if (isAuthenticated) {
+            tokenStatusIconHTML = `<div class="token-status-icon premium-cloud" title="Premium cloud token">
+              <i class="fas fa-cloud-plus"></i>
+            </div>`;
+          } else {
+            tokenStatusIconHTML = `<div class="token-status-icon premium-cloud locked" title="Premium cloud token (authentication required)">
+              <i class="fas fa-lock"></i>
+            </div>`;
+          }
         } else {
           tokenStatusIconHTML = `<div class="token-status-icon free-cloud" title="Free cloud token">
             <i class="fas fa-cloud"></i>

@@ -259,6 +259,16 @@ Hooks.once('init', async () => {
     restricted: false
   });
 
+  // Register hide locked filter setting (hidden from UI, controlled by checkbox)
+  game.settings.register('fa-token-browser', 'hideLocked', {
+    name: 'Hide Locked Tokens',
+    scope: 'client',
+    config: false, // Hidden from UI - controlled by checkbox
+    type: Boolean,
+    default: false, // Default to showing locked tokens
+    restricted: false
+  });
+
   // Register sort setting (hidden from UI, controlled by dropdown)
   game.settings.register('fa-token-browser', 'sortBy', {
     name: 'Sort Tokens By',
@@ -488,6 +498,10 @@ Hooks.once('init', async () => {
       this._activateSizeSelector();
       // Activate main color filter (pass context for hasColorVariants info)
       this._activateMainColorFilter(context);
+      // Activate hide locked filter (only for non-authenticated users)
+      if (!this.isAuthenticated) {
+        this._activateHideLockedFilter();
+      }
       // Setup right-click color variant functionality
       this._setupColorVariantRightClick();
       // Setup simple scroll-based lazy loading
@@ -516,6 +530,8 @@ Hooks.once('init', async () => {
         }, 600);
       }
     }
+
+
 
     /**
      * Enhance the window header with Patreon auth and token stats
@@ -1004,6 +1020,34 @@ Hooks.once('init', async () => {
     }
 
     /**
+     * Activate the hide locked filter checkbox
+     */
+    _activateHideLockedFilter() {
+      const checkbox = this.element.querySelector('#hide-locked');
+      
+      if (!checkbox) return;
+
+      // Load and apply saved hide locked filter state
+      const savedState = game.settings.get('fa-token-browser', 'hideLocked');
+      checkbox.checked = savedState;
+
+      const handler = (event) => {
+        const isChecked = event.target.checked;
+        
+        // Save the new hide locked filter state to settings
+        game.settings.set('fa-token-browser', 'hideLocked', isChecked);
+        
+        // Regenerate the grid with the new filter
+        this.searchManager.regenerateGrid();
+        
+        console.log(`fa-token-browser | Hide locked tokens ${isChecked ? 'enabled' : 'disabled'}`);
+      };
+      
+      // Register event handler
+      this.eventManager.registerHideLockedFilterHandler(checkbox, handler);
+    }
+
+    /**
      * Update the checkbox state based on currently available images
      */
     _updateColorVariantsCheckboxState() {
@@ -1034,23 +1078,27 @@ Hooks.once('init', async () => {
     }
 
     /**
-     * Check if color variants are available (simplified approach)
+     * Check if color variants are available (updated for premium visibility)
      * @returns {boolean} True if color variants feature should be enabled
      */
     _hasColorVariantsAvailable() {
-      // Get authentication status
-      const authData = game.settings.get('fa-token-browser', 'patreon_auth_data');
-      const isAuthenticated = authData && authData.authenticated;
-      
       // Get local tokens count
       const localTokenCount = this._allImages.filter(img => img.source === 'local').length;
       
-      // Color variants are available if:
-      // 1. User is authenticated with Patreon (access to premium tokens with multiple variants), OR
-      // 2. User has local tokens loaded (may have custom variants)
-      const hasVariants = isAuthenticated || localTokenCount > 0;
+      // Get cloud tokens count (both free and premium)
+      const cloudTokenCount = this._allImages.filter(img => img.source === 'cloud').length;
       
-      console.log(`fa-token-browser | Color variants check: authenticated=${isAuthenticated}, localTokens=${localTokenCount}, enabled=${hasVariants}`);
+      // Color variants are available if:
+      // 1. User has local tokens loaded (may have custom variants), OR
+      // 2. User has cloud tokens loaded (both free and premium tokens may have variants)
+      //    Even non-authenticated users can see premium tokens now, so variants should be available
+      const hasVariants = localTokenCount > 0 || cloudTokenCount > 0;
+      
+      // Get authentication status for logging
+      const authData = game.settings.get('fa-token-browser', 'patreon_auth_data');
+      const isAuthenticated = authData && authData.authenticated;
+      
+      console.log(`fa-token-browser | Color variants check: authenticated=${isAuthenticated}, localTokens=${localTokenCount}, cloudTokens=${cloudTokenCount}, enabled=${hasVariants}`);
       
       return hasVariants;
     }
@@ -1122,6 +1170,10 @@ Hooks.once('init', async () => {
       // Remove any existing variant panel
       this._hideColorVariantsPanel();
       
+      // Check authentication status for variant panel
+      const authData = game.settings.get('fa-token-browser', 'patreon_auth_data');
+      const isAuthenticated = authData && authData.authenticated;
+      
       // Create variant panel
       const variantPanel = document.createElement('div');
       variantPanel.className = 'color-variants-panel';
@@ -1138,14 +1190,31 @@ Hooks.once('init', async () => {
       // Create thumbnail for each color variant (make them work like real token items)
       colorVariants.forEach(variant => {
         const variantItem = document.createElement('div');
-        variantItem.className = 'token-base token-item variant-item';
+        
+        // Check if this variant is a locked premium token
+        const isPremiumToken = variant.imageData.source === 'cloud' && variant.imageData.tier === 'premium';
+        const isLockedToken = isPremiumToken && !isAuthenticated && !variant.imageData.isCached;
+        
+        let className = 'token-base token-item variant-item';
+        if (isLockedToken) {
+          className += ' locked-token';
+        }
+        variantItem.className = className;
+        
         variantItem.setAttribute('data-filename', variant.filename);
         variantItem.setAttribute('data-path', variant.imageData.path);
         variantItem.setAttribute('data-source', variant.imageData.source);
         if (variant.imageData.tier) {
           variantItem.setAttribute('data-tier', variant.imageData.tier);
         }
-        variantItem.setAttribute('draggable', 'true');
+        
+        // Set draggable state based on lock status
+        if (isLockedToken) {
+          variantItem.setAttribute('draggable', 'false');
+          variantItem.style.cursor = 'not-allowed';
+        } else {
+          variantItem.setAttribute('draggable', 'true');
+        }
         
         // Store the imageData directly on the element for hover preview
         // Convert UI format back to TokenData format using the stored _tokenData
@@ -1161,10 +1230,17 @@ Hooks.once('init', async () => {
                 <i class="fas fa-cloud-check"></i>
               </div>`;
           } else if (variant.imageData.tier === 'premium') {
-            statusIconHTML = `
-              <div class="token-status-icon premium-cloud" title="Premium cloud token">
-                <i class="fas fa-cloud-plus"></i>
-              </div>`;
+            if (isAuthenticated) {
+              statusIconHTML = `
+                <div class="token-status-icon premium-cloud" title="Premium cloud token">
+                  <i class="fas fa-cloud-plus"></i>
+                </div>`;
+            } else {
+              statusIconHTML = `
+                <div class="token-status-icon premium-cloud locked" title="Premium cloud token (authentication required)">
+                  <i class="fas fa-lock"></i>
+                </div>`;
+            }
           } else {
             statusIconHTML = `
               <div class="token-status-icon free-cloud" title="Free cloud token">
@@ -1249,9 +1325,10 @@ Hooks.once('init', async () => {
       if (variantGrid) {
         // Create DragDrop instance for variants panel using Foundry's system
         const variantDragDrop = new foundry.applications.ux.DragDrop({
-          dragSelector: '.token-item',
+          dragSelector: '.token-item:not(.locked-token)',
           dropSelector: null, // We don't handle drops in variants panel
           permissions: {
+            // Allow all drag starts - we'll check authentication in the callback
             dragstart: () => true,
             drop: () => false
           },

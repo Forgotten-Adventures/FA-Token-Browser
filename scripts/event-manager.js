@@ -32,6 +32,9 @@ export class EventManager {
     // Main color filter handler
     this._mainColorFilterHandler = null;
     
+    // Hide locked filter handler
+    this._hideLockedFilterHandler = null;
+    
     // Context menu handler
     this._contextMenuHandler = null;
     
@@ -131,6 +134,7 @@ export class EventManager {
       this._searchClearHandler = null;
       this._sizeButtonHandlers = [];
       this._mainColorFilterHandler = null;
+      this._hideLockedFilterHandler = null;
       this._contextMenuHandler = null;
       this._scrollHandler = null;
       this._handleMouseEnter = null;
@@ -208,6 +212,15 @@ export class EventManager {
         checkbox.removeEventListener('change', handler);
       }
       this._mainColorFilterHandler = null;
+    }
+    
+    // Clean up hide locked filter handler
+    if (this._hideLockedFilterHandler) {
+      const { checkbox, handler } = this._hideLockedFilterHandler;
+      if (checkbox) {
+        checkbox.removeEventListener('change', handler);
+      }
+      this._hideLockedFilterHandler = null;
     }
     
     // Clean up context menu handler
@@ -290,6 +303,16 @@ export class EventManager {
   registerMainColorFilterHandler(checkbox, handler) {
     checkbox.addEventListener('change', handler);
     this._mainColorFilterHandler = { checkbox, handler };
+  }
+
+  /**
+   * Register hide locked filter checkbox handler for cleanup tracking
+   * @param {HTMLElement} checkbox - The checkbox element
+   * @param {Function} handler - The event handler function
+   */
+  registerHideLockedFilterHandler(checkbox, handler) {
+    checkbox.addEventListener('change', handler);
+    this._hideLockedFilterHandler = { checkbox, handler };
   }
 
   /**

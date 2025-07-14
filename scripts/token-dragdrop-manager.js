@@ -72,11 +72,15 @@ export class TokenDragDropManager {
 
     // Create new DragDrop instance using Foundry's standard class
     this._dragDrop = new foundry.applications.ux.DragDrop({
-      dragSelector: '.token-item',
+      dragSelector: '.token-item:not(.locked-token)',
       dropSelector: null, // We don't handle drops in this app
       permissions: {
-        // FIX: For now, let's make this work and we'll handle draggable state in _onDragStart
-        dragstart: () => true,
+        // Allow all drag starts except locked tokens
+        dragstart: (selector) => {
+          // Note: Foundry's permission function only gets the selector string, not the element
+          // We'll handle locked token checking in the callback
+          return true;
+        },
         drop: () => false
       },
       callbacks: {
@@ -274,6 +278,17 @@ export class TokenDragDropManager {
         // Get TokenData for enhanced cloud support using optimized method
         const tokenData = this._getTokenDataFromElement(tokenItem);
         
+        // Check if token is draggable before preloading
+        const isDraggable = this._isTokenDraggable(tokenData);
+        if (!isDraggable) {
+          // Token is not draggable, set locked state
+          tokenItem.setAttribute('draggable', 'false');
+          tokenItem.style.cursor = 'not-allowed';
+          tokenItem.classList.add('locked-token');
+          tokenItem.classList.remove('preloading');
+          return;
+        }
+        
         // Parse token size to calculate correct preview dimensions
         const { gridWidth, gridHeight, scale } = parseTokenSize(filename);
         const { width: previewWidth, height: previewHeight } = calcDragPreviewPixelDims(
@@ -291,7 +306,7 @@ export class TokenDragDropManager {
               // START with dragging DISABLED for non-cached cloud tokens - only enable after mousedown preparation
               tokenItem.setAttribute('draggable', 'false');
               tokenItem.style.cursor = 'grab';
-              tokenItem.classList.remove('preloading');
+              tokenItem.classList.remove('preloading', 'locked-token');
               return;
             }
             // If cached, continue with preload like a local token using the cached file path
@@ -425,6 +440,46 @@ export class TokenDragDropManager {
   }
 
   /**
+   * Check if token is draggable based on authentication and tier
+   * @param {TokenData} tokenData - Token data
+   * @returns {boolean} True if token can be dragged
+   */
+  _isTokenDraggable(tokenData) {
+    if (!tokenData) return false;
+    
+    // Local tokens are always draggable
+    if (tokenData.source === 'local') return true;
+    
+    // For cloud tokens, check authentication and tier
+    if (tokenData.source === 'cloud') {
+      // Free cloud tokens are always draggable
+      if (tokenData.tier === 'free') return true;
+      
+      // Premium cloud tokens require authentication OR being cached locally
+      if (tokenData.tier === 'premium') {
+        // Check if token is cached locally first (with error handling)
+        try {
+          if (this.parentApp?.tokenDataService?.isTokenCached) {
+            const isTokenCached = this.parentApp.tokenDataService.isTokenCached(tokenData);
+            if (isTokenCached) {
+              return true; // Cached premium tokens are always draggable
+            }
+          }
+        } catch (error) {
+          console.warn('fa-token-browser | Cache check failed in _isTokenDraggable:', error);
+          // Continue to authentication check on cache failure
+        }
+        
+        // If not cached (or cache check failed), check authentication
+        const authData = game.settings.get('fa-token-browser', 'patreon_auth_data');
+        return authData && authData.authenticated;
+      }
+    }
+    
+    return false;
+  }
+
+  /**
    * Check if drag preload is ready and enable dragging if so
    * @param {HTMLElement} tokenItem - The token item element
    */
@@ -436,11 +491,23 @@ export class TokenDragDropManager {
     const tokenData = this._getTokenDataFromElement(tokenItem);
     const isNonCachedCloudToken = tokenData && tokenData.source === 'cloud' && !this.parentApp.tokenDataService.isTokenCached(tokenData);
     
+    // Check if token is draggable based on authentication and tier
+    const isDraggable = this._isTokenDraggable(tokenData);
+    
+    if (!isDraggable) {
+      // Token is not draggable (e.g., premium token for non-authenticated user)
+      tokenItem.setAttribute('draggable', 'false');
+      tokenItem.style.cursor = 'not-allowed';
+      tokenItem.classList.remove('preloading');
+      tokenItem.classList.add('locked-token');
+      return;
+    }
+    
     if (isReady && tokenItem.getAttribute('draggable') !== 'true') {
       // Preload is ready, enable dragging
       tokenItem.setAttribute('draggable', 'true');
       tokenItem.style.cursor = 'grab';
-      tokenItem.classList.remove('preloading');
+      tokenItem.classList.remove('preloading', 'locked-token');
       
 
     } else if (!isReady && tokenItem.getAttribute('draggable') === 'true' && !isNonCachedCloudToken) {
@@ -448,6 +515,7 @@ export class TokenDragDropManager {
       tokenItem.setAttribute('draggable', 'false');
       tokenItem.style.cursor = 'wait';
       tokenItem.classList.add('preloading');
+      tokenItem.classList.remove('locked-token');
     }
     // For non-cached cloud tokens, don't add preloading class - they're ready to drag (mousedown will handle preparation)
   }
@@ -527,7 +595,9 @@ export class TokenDragDropManager {
    */
   _getTokenDataFromElement(tokenItem) {
     const filename = tokenItem.getAttribute('data-filename');
-    if (!filename) return null;
+    if (!filename) {
+      return null;
+    }
     
     // Try to find the UI token and extract its TokenData
     const uiToken = this.parentApp._allImages?.find(token => token.filename === filename);
@@ -573,13 +643,46 @@ export class TokenDragDropManager {
     if (!tokenItem || !tokenItem.classList.contains('token-item')) {
       return false;
     }
+    
+    // Immediately block dragging for locked tokens
+    if (tokenItem.classList.contains('locked-token')) {
+      event.preventDefault();
+      event.stopPropagation();
+      return false;
+    }
+
+    // Get TokenData for enhanced cloud support using optimized method
+    const tokenData = this._getTokenDataFromElement(tokenItem);
+    
+    // Check if token is draggable first
+    const isDraggable = this._isTokenDraggable(tokenData);
+    if (!isDraggable) {
+      // Show incentive message for premium tokens
+      if (tokenData && tokenData.source === 'cloud' && tokenData.tier === 'premium') {
+        ui.notifications.info('🔒 Premium token! Connect your Patreon account to unlock drag & drop access.');
+      }
+      return false; // Block the drag
+    }
+
+    // For cloud tokens, check if preloaded drag canvas is ready
+    // If not ready, they should use queued drag instead of regular drag
+    if (tokenData && tokenData.source === 'cloud') {
+      const hasPreloadedCanvas = tokenItem._preloadedDragCanvas && 
+                                typeof tokenItem._preloadedDragCanvas !== 'string' && 
+                                tokenItem._preloadedDragCanvas.width > 0;
+      
+      if (!hasPreloadedCanvas) {
+        // Block regular drag - token should use queued drag system
+        return false;
+      }
+    }
 
     // FIX: Check draggable state here since we couldn't do it in permissions
     const draggableAttr = tokenItem.getAttribute('draggable');
-    const isDraggable = draggableAttr === 'true';
+    const isDraggableAttr = draggableAttr === 'true';
     const isPreloading = tokenItem.classList.contains('preloading');
     
-    if (!isDraggable || isPreloading) {
+    if (!isDraggableAttr || isPreloading) {
       return false; // Block the drag
     }
 
@@ -595,9 +698,6 @@ export class TokenDragDropManager {
       console.warn('fa-token-browser | Drag Start: Token item missing required data attributes');
       return false;
     }
-
-    // Get TokenData for enhanced cloud support using optimized method
-    const tokenData = this._getTokenDataFromElement(tokenItem);
 
     // At this point, draggable=true means preload canvas is ready
     // (we only set draggable=true after successful preload)
@@ -669,7 +769,8 @@ export class TokenDragDropManager {
               src: tokenFilePath, // Use local file path for token texture
               scaleX: scale,
               scaleY: scale
-            }
+            },
+            lockRotation: false
           }
         },
         // Keep our custom data for backwards compatibility
@@ -768,6 +869,17 @@ export class TokenDragDropManager {
       }
 
       const tokenData = this._getTokenDataFromElement(tokenItem);
+      
+      // Check if token is draggable before preparing
+      const isDraggable = this._isTokenDraggable(tokenData);
+      if (!isDraggable) {
+        // Show incentive message for premium tokens on click
+        if (tokenData && tokenData.source === 'cloud' && tokenData.tier === 'premium') {
+          ui.notifications.info('🔒 Premium token! Connect your Patreon account to unlock access.');
+        }
+        return;
+      }
+      
       if (tokenData && tokenData.source === 'cloud' && !tokenItem._preloadedDragCanvas) {
         const filename = tokenItem.getAttribute('data-filename');
         
@@ -1280,7 +1392,8 @@ export class TokenDragDropManager {
               src: tokenFilePath,
               scaleX: scale,
               scaleY: scale
-            }
+            },
+            lockRotation: false
           }
         },
         tokenSize: {

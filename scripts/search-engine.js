@@ -214,6 +214,19 @@ export class SearchManager {
   getImagesToDisplay(allImages) {
     let imagesToDisplay = this.isSearchActive ? this._filteredImages : allImages;
     
+    // Apply hide locked filter if enabled
+    const hideLocked = game.settings.get('fa-token-browser', 'hideLocked');
+    if (hideLocked) {
+      imagesToDisplay = imagesToDisplay.filter(image => {
+        // Check if this is a locked token (premium cloud token without authentication)
+        const isLockedToken = image.source === 'cloud' && 
+                              image.tier === 'premium' && 
+                              !this.app.isAuthenticated && 
+                              !image.isCached;
+        return !isLockedToken;
+      });
+    }
+    
     // Apply main color filter if enabled
     const mainColorOnly = game.settings.get('fa-token-browser', 'mainColorOnly');
     if (mainColorOnly) {
@@ -269,10 +282,12 @@ export class SearchManager {
   sortImages(images, sortBy) {
     switch (sortBy) {
       case 'name':
-        return images.sort((a, b) => a.displayName.localeCompare(b.displayName));
+        // Create a copy to avoid modifying the original array
+        return [...images].sort((a, b) => a.displayName.localeCompare(b.displayName));
       
       case 'modified':
-        return images.sort((a, b) => {
+        // Create a copy to avoid modifying the original array
+        return [...images].sort((a, b) => {
           const dateA = a._tokenData?.metadata?.lastModified || new Date(0);
           const dateB = b._tokenData?.metadata?.lastModified || new Date(0);
           return dateB - dateA; // Most recent first

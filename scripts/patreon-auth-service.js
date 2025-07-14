@@ -328,6 +328,9 @@ export class PatreonAuthService {
             // Store in Foundry settings for persistence
             await game.settings.set('fa-token-browser', 'patreon_auth_data', authResult);
             
+            // Clear the hideLocked setting since authenticated users don't have locked tokens
+            await game.settings.set('fa-token-browser', 'hideLocked', false);
+            
             // Clear the pending state
             delete this._pendingState;
             

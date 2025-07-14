@@ -142,7 +142,7 @@ export class CloudTokenService {
    */
   async _browseFreeTokens() {
     // Use direct fetch for free endpoint (no auth required)
-    const url = `${this.config.baseUrl}/foundry-cloud-browse-free`;
+    const url = `${this.config.baseUrl}/foundry-cloud-browse`;
     
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), this.config.timeout);

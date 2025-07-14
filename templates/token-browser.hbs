@@ -40,7 +40,7 @@
   {{#if images.length}}
     <div class="token-grid">
       {{#each images}}
-        <div class="token-base token-item {{#if (eq source 'cloud')}}cloud-token{{/if}}" data-path="{{path}}" data-filename="{{filename}}" data-source="{{source}}" {{#if tier}}data-tier="{{tier}}"{{/if}} {{#if (eq source 'cloud')}}draggable="false"{{else}}draggable="true"{{/if}}>
+        <div class="token-base token-item {{#if (eq source 'cloud')}}cloud-token{{/if}}{{#if (and (eq source 'cloud') (eq tier 'premium') (not ../isAuthenticated) (not isCached))}} locked-token{{/if}}" data-path="{{path}}" data-filename="{{filename}}" data-source="{{source}}" {{#if tier}}data-tier="{{tier}}"{{/if}} {{#if (and (eq source 'cloud') (eq tier 'premium') (not ../isAuthenticated) (not isCached))}}draggable="false" style="cursor: not-allowed;"{{else if (eq source 'cloud')}}draggable="false"{{else}}draggable="false"{{/if}}>
           <div class="token-thumbnail">
             <img src="{{url}}" alt="{{filename}}" />
             {{#if variant}}
@@ -61,9 +61,15 @@
                 <i class="fas fa-cloud-check"></i>
               </div>
             {{else if (eq tier 'premium')}}
-              <div class="token-status-icon premium-cloud" title="Premium cloud token">
-                <i class="fas fa-cloud-plus"></i>
-              </div>
+              {{#if ../isAuthenticated}}
+                <div class="token-status-icon premium-cloud" title="Premium cloud token">
+                  <i class="fas fa-cloud-plus"></i>
+                </div>
+              {{else}}
+                <div class="token-status-icon premium-cloud locked" title="Premium cloud token (authentication required)">
+                  <i class="fas fa-lock"></i>
+                </div>
+              {{/if}}
             {{else}}
               <div class="token-status-icon free-cloud" title="Free cloud token">
                 <i class="fas fa-cloud"></i>
@@ -89,8 +95,16 @@
     <div class="main-color-filter">
       <label class="main-color-checkbox{{#unless hasColorVariants}} disabled{{/unless}}">
         <input type="checkbox" id="main-color-only" title="{{#if hasColorVariants}}Right-click tokens to see color variants in a popup panel{{else}}No color variants available in current token set{{/if}}" {{#unless hasColorVariants}}disabled{{/unless}} />
-        <span class="checkbox-label">Show Color variants on Right Click</span>
+        <span class="checkbox-label">Color variants on Right Click</span>
       </label>
     </div>
+    {{#unless isAuthenticated}}
+    <div class="hide-locked-filter">
+      <label class="hide-locked-checkbox">
+        <input type="checkbox" id="hide-locked" title="Hide locked premium tokens from the grid" />
+        <span class="checkbox-label">Hide locked</span>
+      </label>
+    </div>
+    {{/unless}}
   </div>
 </div> 
