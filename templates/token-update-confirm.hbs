@@ -20,6 +20,10 @@
         <input type="checkbox" id="update-actor-image" {{#if updateActorImageDefault}}checked{{/if}} /> 
         Also update actor portrait image
       </label>
+      <label class="checkbox-label{{#unless canUseWildcard}} disabled{{/unless}}">
+        <input type="checkbox" id="use-wildcard-token" {{#unless canUseWildcard}}disabled{{/unless}} /> 
+        Use wildcard token (random color variant)
+      </label>
     </div>
     
     <div class="token-details">

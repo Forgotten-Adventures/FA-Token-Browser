@@ -1991,8 +1991,10 @@ export class TokenDragDropManager {
       
       // Check if Shift key is held - if so, bypass confirmation dialog
       if (event && event.shiftKey) {
-        // Auto-accept with default settings (update actor image enabled)
+        // Auto-accept with default settings
         dropData._updateActorImage = true;
+        dropData._useWildcard = false; // Disabled for now, will be reimplemented later
+        
         await TokenDragDropManager._updateActorPrototypeToken(actor, dropData);
         ui.notifications.info(`Updated prototype token for "${actor.name}" (Shift+Drop)`);
       } else {
@@ -2068,10 +2070,38 @@ export class TokenDragDropManager {
         };
         
         async _prepareContext() {
-          // Import the display name parser
+          // Import the display name parser and search utilities
           const { parseTokenDisplayName } = await import('./token-data-service.js');
+          const { detectColorVariant } = await import('./search-engine.js');
           const { displayName } = parseTokenDisplayName(this.dropData.filename);
           
+          // Check if user can use wildcard tokens
+          const authData = game.settings.get('fa-token-browser', 'patreon_auth_data');
+          const isAuthenticated = authData && authData.authenticated;
+          
+          // Determine token type based on data structure
+          let isLocalToken = false;
+          let isCloudToken = false;
+          
+          if (this.dropData.tokenData) {
+            // New structure: check tokenData.source
+            isLocalToken = this.dropData.tokenData.source === 'local';
+            isCloudToken = this.dropData.tokenData.source === 'cloud';
+          } else {
+            // Fallback: check dropData.tokenSource (older structure)
+            isLocalToken = this.dropData.tokenSource === 'local';
+            isCloudToken = this.dropData.tokenSource === 'cloud';
+          }
+          
+          // Check if this token has color variants
+          const variantInfo = detectColorVariant(this.dropData.filename);
+          const hasColorVariants = variantInfo.hasColorVariant;
+          
+          // Wildcard is available if:
+          // - Local tokens with color variants (any user), OR
+          // - Cloud tokens with color variants (authenticated users only)
+          const canUseWildcard = hasColorVariants && (isLocalToken || (isCloudToken && isAuthenticated));
+
           return {
             actor: this.actor,
             dropData: this.dropData,
@@ -2080,11 +2110,12 @@ export class TokenDragDropManager {
             filename: this.dropData.filename,
             displayName: displayName,
             tokenSource: this.dropData.tokenSource,
-            isCloudToken: this.dropData.tokenSource === 'cloud',
+            isCloudToken: isCloudToken,
             tier: this.dropData.tier,
             tokenSize: this.dropData.tokenSize,
             hasScale: this.dropData.tokenSize && this.dropData.tokenSize.scale !== 1,
-            updateActorImageDefault: true
+            updateActorImageDefault: true,
+            canUseWildcard: canUseWildcard
           };
         }
         
@@ -2097,7 +2128,9 @@ export class TokenDragDropManager {
             
             if (action === 'confirm') {
               const updateActorImage = this.element.querySelector('#update-actor-image')?.checked || false;
+              const useWildcard = this.element.querySelector('#use-wildcard-token')?.checked || false;
               this.dropData._updateActorImage = updateActorImage;
+              this.dropData._useWildcard = useWildcard;
               this.resolveCallback(true);
               this.close();
             } else if (action === 'cancel') {
@@ -2159,16 +2192,33 @@ export class TokenDragDropManager {
     // Get system info for system-specific handling
     const systemInfo = SystemDetection.getSystemInfo();
     
+    // Determine the token URL to use
+    let tokenUrl = dropData.url;
+    
+    // Handle wildcard tokens if enabled
+    if (dropData._useWildcard) {
+      console.log('fa-token-browser | Applying wildcard token mode');
+      
+      // Download all color variants first
+      await TokenDragDropManager._downloadAllColorVariants(dropData);
+      
+      // Import and convert URL to wildcard format
+      const { detectColorVariant } = await import('./search-engine.js');
+      tokenUrl = TokenDragDropManager._convertToWildcardPath(dropData.url, detectColorVariant);
+      console.log(`fa-token-browser | Converted to wildcard URL: ${tokenUrl}`);
+    }
+    
     // Start with base prototype token update data
     const prototypeTokenUpdate = {
       texture: {
-        src: dropData.url,
+        src: tokenUrl,
         scaleX: tokenSize.scale,
         scaleY: tokenSize.scale
       },
       width: tokenSize.gridWidth,
       height: tokenSize.gridHeight,
-      lockRotation: false // Uncheck "Lock Artwork Rotation" since our tokens are top-down style
+      lockRotation: false, // Uncheck "Lock Artwork Rotation" since our tokens are top-down style
+      randomImg: dropData._useWildcard || false // Enable "Randomize Wildcard Images" when using wildcards
     };
     
     // Apply system-specific sizing logic
@@ -2493,4 +2543,188 @@ export class TokenDragDropManager {
       this._intersectionObserver.observe(tokenItem);
     }
   }
+
+  /**
+   * Convert a token path to wildcard format by replacing variant number with '*'
+   * @param {string} tokenPath - The original token path
+   * @param {Function} detectColorVariant - The color variant detection function
+   * @returns {string} The wildcard token path
+   * @private
+   */
+  static _convertToWildcardPath(tokenPath, detectColorVariant) {
+    
+    // Get filename from path
+    const pathParts = tokenPath.split('/');
+    const filename = pathParts[pathParts.length - 1];
+    
+    // Detect color variant
+    const variantInfo = detectColorVariant(filename);
+    
+    if (!variantInfo.hasColorVariant) {
+      // No color variant detected, return original path
+      return tokenPath;
+    }
+    
+    // Replace the variant number with '*'
+    const fileExtension = filename.split('.').pop();
+    let wildcardFilename = `${variantInfo.baseNameWithoutVariant}_*.${fileExtension}`;
+    
+    // Escape special characters that might cause issues with wildcards
+    // Common problematic characters: ! [ ] ? ^ at the beginning of patterns
+    wildcardFilename = TokenDragDropManager._escapeWildcardSpecialChars(wildcardFilename);
+    
+    // Reconstruct the full path
+    pathParts[pathParts.length - 1] = wildcardFilename;
+    return pathParts.join('/');
+  }
+
+  /**
+   * Fix special characters in wildcard filenames to prevent issues
+   * @param {string} filename - The filename to fix
+   * @returns {string} Fixed filename
+   * @private
+   */
+  static _escapeWildcardSpecialChars(filename) {
+    // Replace problematic characters with safe alternatives
+    return filename
+      .replace(/!/g, '?')       // Replace ! with ? (safe wildcard character)
+      .replace(/\[/g, '?')      // Replace [ with ? (avoid character class syntax)
+      .replace(/\]/g, '?')      // Replace ] with ? (avoid character class syntax)
+      .replace(/\^/g, '?');     // Replace ^ with ? (avoid anchor syntax)
+  }
+
+
+
+  /**
+   * Download all color variants of a token when using wildcard mode
+   * @param {Object} dropData - The token drop data
+   * @private
+   */
+  static async _downloadAllColorVariants(dropData) {
+    try {
+      // Only download for cloud tokens - check both data structures
+      let isCloudToken = false;
+      
+      if (dropData.tokenData) {
+        // New structure: check tokenData.source (covers cached cloud tokens)
+        isCloudToken = dropData.tokenData.source === 'cloud';
+      } else {
+        // Fallback: check dropData.tokenSource (uncached cloud tokens)
+        isCloudToken = dropData.tokenSource === 'cloud';
+      }
+      
+      if (!isCloudToken) {
+        console.log('fa-token-browser | Skipping variant download for non-cloud token');
+        return;
+      }
+      
+      console.log('fa-token-browser | Starting variant download for cloud token:', dropData.filename);
+
+      // Import necessary functions
+      const { detectColorVariant, getColorVariants } = await import('./search-engine.js');
+      
+      // Get variant info
+      const variantInfo = detectColorVariant(dropData.filename);
+      if (!variantInfo.hasColorVariant) {
+        console.log('fa-token-browser | No color variants detected for token');
+        return;
+      }
+
+      // Get tokens from parent app (already loaded)
+      // Try multiple ways to find the token browser app instance
+      let parentApp = window.tokenBrowserApp;
+      
+      // Fallback: Check Foundry's application instances
+      if (!parentApp) {
+        // Try to get by known ID first
+        parentApp = foundry.applications.instances.get('token-browser-app');
+      }
+      
+      // Fallback: Check for any fa-token-browser app by iterating values
+      if (!parentApp) {
+        for (const app of foundry.applications.instances.values()) {
+          if (app.constructor.name === 'TokenBrowserApp' || 
+              app.element?.classList?.contains('token-browser-app')) {
+            parentApp = app;
+            break;
+          }
+        }
+      }
+      
+      if (!parentApp || !parentApp._allImages) {
+        console.log('fa-token-browser | No parent app or token data available for variant download');
+        console.log('fa-token-browser | parentApp:', parentApp);
+        console.log('fa-token-browser | Available instances:', Array.from(foundry.applications.instances.values()).map(app => app.constructor.name));
+        return;
+      }
+      
+      console.log(`fa-token-browser | Found parent app with ${parentApp._allImages.length} tokens`);
+      
+      // Convert UI tokens to TokenData format
+      const allTokens = parentApp._allImages.map(uiToken => 
+        parentApp.tokenDataService.getTokenDataFromUIObject(uiToken)
+      ).filter(Boolean);
+      
+      // Filter to cloud tokens only
+      const cloudTokens = allTokens.filter(token => token.source === 'cloud');
+      
+      // Find all color variants
+      const variants = getColorVariants(variantInfo.baseNameWithoutVariant, cloudTokens);
+      
+      console.log(`fa-token-browser | Found ${variants.length} color variants for wildcard download`);
+      
+      // Show download start notification
+      ui.notifications.info(`Downloading ${variants.length} color variants for wildcard token...`);
+      
+      // Download each variant using existing infrastructure
+      const downloadPromises = variants.map(async (variant) => {
+        try {
+          // Use existing download infrastructure to get file path (downloads and caches)
+          const cachedPath = await parentApp.tokenDataService.getFilePathForDragDrop(variant.imageData);
+          console.log(`fa-token-browser | Downloaded variant: ${variant.filename}`);
+          return cachedPath;
+        } catch (error) {
+          console.error(`fa-token-browser | Failed to download variant ${variant.filename}:`, error);
+          return null;
+        }
+      });
+      
+      // Wait for all downloads to complete
+      const results = await Promise.allSettled(downloadPromises);
+      const successCount = results.filter(result => result.status === 'fulfilled' && result.value).length;
+      
+      console.log(`fa-token-browser | Downloaded ${successCount}/${variants.length} color variants for wildcard`);
+      
+      // Update cache indicators in the UI for all successfully downloaded variants
+      results.forEach((result, index) => {
+        if (result.status === 'fulfilled' && result.value) {
+          const variant = variants[index];
+          if (variant && variant.imageData) {
+            // Update the UI token object to reflect cache status
+            const uiToken = parentApp._allImages?.find(token => token.filename === variant.filename);
+            if (uiToken) {
+              uiToken.isCached = true;
+            }
+            
+            // Use a longer timeout to ensure the cache has been fully updated
+            setTimeout(() => {
+              parentApp.updateTokenStatusIcon(variant.filename, 'cached');
+            }, 500);
+          }
+        }
+      });
+      
+      // Show completion notification
+      if (successCount === variants.length) {
+        ui.notifications.info(`✅ Downloaded all ${successCount} color variants for wildcard token`);
+      } else {
+        ui.notifications.warn(`⚠️ Downloaded ${successCount}/${variants.length} color variants (${variants.length - successCount} failed)`);
+      }
+      
+    } catch (error) {
+      console.error('fa-token-browser | Error downloading color variants:', error);
+    }
+  }
+
+  
 } 

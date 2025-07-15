@@ -3,7 +3,7 @@
 A specialized token browser for Foundry VTT designed specifically for Forgotten Adventures tokens. Built around FA's token collection and cloud service, this module provides an easy and efficient way to browse, search, and use FA tokens directly in your Foundry VTT games.
 
 ![Foundry VTT v13](https://img.shields.io/badge/Foundry%20VTT-v13+-green)
-![Version](https://img.shields.io/badge/version-0.9.1-blue)
+![Version](https://img.shields.io/badge/version-0.9.2-blue)
 
 ![Image1](images/Foundry_Virtual_Tabletop_toEIdP8i6Y.png)
 
@@ -14,6 +14,7 @@ A specialized token browser for Foundry VTT designed specifically for Forgotten 
 - **Advanced Search**: Powerful search engine with filtering capabilities
 - **Drag & Drop**: Seamless token placement directly onto actors and scenes
 - **Color Variants**: Browse and select from multiple color variants for each token
+- **Wildcard Tokens**: Download all color variants as wildcards for randomized token appearances
 - **Thumbnail Sizes**: Adjustable thumbnail sizes (small, medium, large) for optimal viewing
 
 ### ☁️ **Cloud Integration**
@@ -61,6 +62,7 @@ A specialized token browser for Foundry VTT designed specifically for Forgotten 
 - **Preview**: Hover over any token to see a larger preview with detailed info as well as correct size/scale grid representation.
 - **Drag & Drop**: Drag tokens directly onto actors (hold shift to skip confirm window) or scenes
 - **Color Variants**: Right Click on a token to view available color variants (When color variants available and option selected)
+- **Wildcard Tokens**: Enable "Randomize Wildcard Images" in the token dialog to download all color variants as wildcards, allowing Foundry to randomly select from available colors
 - **Search Filters**: Use the search bar to filter by name, type, or other criteria, supports AND OR NOT terms
 - **Thumbnail Size**: Adjust the thumbnail size using the size selector
 
