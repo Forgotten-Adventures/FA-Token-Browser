@@ -9,7 +9,7 @@ A specialized token browser for Foundry VTT designed specifically for Forgotten 
 
 ## Features
 
-### 🎯 **Core Functionality**
+### ⭕ **Core Functionality**
 - **Unified Token Browser**: Browse both local and cloud tokens in a single interface
 - **Advanced Search**: Powerful search engine with filtering capabilities
 - **Drag & Drop**: Seamless token placement directly onto actors and scenes
