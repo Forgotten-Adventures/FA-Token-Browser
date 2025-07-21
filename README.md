@@ -59,14 +59,17 @@ A specialized token browser for Foundry VTT designed specifically for Forgotten 
 ![Image1](images/Foundry_Virtual_Tabletop_SYXXq4sNhN.png)
 
 ### Token Management
+- **Search Filters**: Use the search bar to filter by name, type, or other criteria, supports AND OR NOT terms
 - **Preview**: Hover over any token to see a larger preview with detailed info as well as correct size/scale grid representation.
+- **Thumbnail Size**: Adjust the thumbnail size using the size selector
+
+https://github.com/user-attachments/assets/1b53dbe4-2636-430a-9363-9e21fbe635b6
+  
 - **Drag & Drop**: Drag tokens directly onto actors (hold shift to skip confirm window) or scenes
 - **Color Variants**: Right Click on a token to view available color variants (When color variants available and option selected)
 - **Wildcard Tokens**: Enable "Randomize Wildcard Images" in the token dialog to download all color variants as wildcards, allowing Foundry to randomly select from available colors
-- **Search Filters**: Use the search bar to filter by name, type, or other criteria, supports AND OR NOT terms
-- **Thumbnail Size**: Adjust the thumbnail size using the size selector
 
-https://github.com/user-attachments/assets/f371c6d2-922d-4237-9566-eb08c8c6cd18
+https://github.com/user-attachments/assets/f527f486-2b9d-4223-acc9-c07d5e24ff86
 
 ## Requirements
 
