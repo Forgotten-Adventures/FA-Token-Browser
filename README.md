@@ -26,14 +26,17 @@ A specialized token browser for Foundry VTT designed specifically for Forgotten 
 
 ## Installation
 
-### Method 1: Install URL (Recommended)
+### Method 1: Install from within Foundry (Recommended)
 1. Open Foundry VTT and navigate to **Add-on Modules**
 2. Click **Install Module**
-3. Enter the following URL:
+3. Search for "FA Token Browser" & click "Install"
+<img width="958" height="425" alt="image" src="https://github.com/user-attachments/assets/cb9ceff2-0641-43cf-8647-18e2b9480d3c" />
+   
+5. Alternatively, enter the following URL at the bottom of the same window:
    ```
    https://raw.githubusercontent.com/Forgotten-Adventures/FA-Token-Browser/main/module.json
    ```
-4. Click **Install**
+6. Click **Install**
 
 ### Method 2: Manual Installation
 1. Download the [latest zip](https://github.com/Forgotten-Adventures/FA-Token-Browser/raw/main/fa-token-browser.zip)
