@@ -90,13 +90,7 @@ The module includes several configurable options accessible through Foundry VTT'
 - **Large Previews**: Select to increase size of the hover previews (350px instead of 200px default)
 - **Token Cache Directory**: Directory where cloud tokens are cached(downloaded) locally on drag&drop or actor update.
 
-### ForgeVTT Users (WIP, limited testing, might be buggy in cases)
-Special optimizations are automatically applied for ForgeVTT environments:
-- Optimized cloud storage operations
-- Enhanced URL handling
-- Improved performance for cloud-hosted games
-
-### ❓ Support
+## ❓ Support
 For additional support:
 - Check the [Issues page](https://github.com/Forgotten-Adventures/FA-Token-Browser/issues) for known problems
 - Join the [Forgotten Adventures Discord](https://discord.gg/forgottenadventures) for community support
