@@ -78,8 +78,11 @@ export class CloudTokenService {
 
         if (!response.ok) {
           // Handle specific HTTP status codes
-          if (response.status === 401 || response.status === 403) {
+          if (response.status === 400 || response.status === 401 || response.status === 403) {
             // Authentication error - trigger disconnect via PatreonAuthService
+            // 400: Bad Request (often IP validation failure after IP change)
+            // 401: Unauthorized (token invalid/expired)  
+            // 403: Forbidden (insufficient permissions)
             this._triggerAuthDisconnect();
             throw new Error('Authentication expired or invalid - please reconnect');
           } else if (response.status === 404) {

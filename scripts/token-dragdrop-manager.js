@@ -2218,7 +2218,16 @@ export class TokenDragDropManager {
       width: tokenSize.gridWidth,
       height: tokenSize.gridHeight,
       lockRotation: false, // Uncheck "Lock Artwork Rotation" since our tokens are top-down style
-      randomImg: dropData._useWildcard || false // Enable "Randomize Wildcard Images" when using wildcards
+      randomImg: dropData._useWildcard || false, // Enable "Randomize Wildcard Images" when using wildcards
+      
+      // FIX: Disable Dynamic Rings and clear subject texture to prevent it from overriding the image path
+      // This addresses GitHub issue #1: Dynamic Rings subject texture overrides the image path if enabled
+      ring: {
+        enabled: false,    // Disable Dynamic Ring
+        subject: {
+          texture: null    // Clear subject texture so it doesn't override the new image path
+        }
+      }
     };
     
     // Apply system-specific sizing logic

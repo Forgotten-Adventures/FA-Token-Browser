@@ -3,13 +3,13 @@
 A specialized token browser for Foundry VTT designed specifically for Forgotten Adventures tokens. Built around FA's token collection and cloud service, this module provides an easy and efficient way to browse, search, and use FA tokens directly in your Foundry VTT games.
 
 ![Foundry VTT v13](https://img.shields.io/badge/Foundry%20VTT-v13+-green)
-![Version](https://img.shields.io/badge/version-0.9.2-blue)
+![Version](https://img.shields.io/badge/version-0.9.3-blue)
 
 ![Image1](images/Foundry_Virtual_Tabletop_toEIdP8i6Y.png)
 
 ## Features
 
-### ⭕ **Core Functionality**
+### 🎯 **Core Functionality**
 - **Unified Token Browser**: Browse both local and cloud tokens in a single interface
 - **Advanced Search**: Powerful search engine with filtering capabilities
 - **Drag & Drop**: Seamless token placement directly onto actors and scenes
@@ -26,17 +26,14 @@ A specialized token browser for Foundry VTT designed specifically for Forgotten 
 
 ## Installation
 
-### Method 1: Install from within Foundry (Recommended)
+### Method 1: Install URL (Recommended)
 1. Open Foundry VTT and navigate to **Add-on Modules**
 2. Click **Install Module**
-3. Search for "FA Token Browser" & click "Install"
-<img width="958" height="425" alt="image" src="https://github.com/user-attachments/assets/cb9ceff2-0641-43cf-8647-18e2b9480d3c" />
-   
-5. Alternatively, enter the following URL at the bottom of the same window:
+3. Enter the following URL:
    ```
    https://raw.githubusercontent.com/Forgotten-Adventures/FA-Token-Browser/main/module.json
    ```
-6. Click **Install**
+4. Click **Install**
 
 ### Method 2: Manual Installation
 1. Download the [latest zip](https://github.com/Forgotten-Adventures/FA-Token-Browser/raw/main/fa-token-browser.zip)
@@ -62,28 +59,25 @@ A specialized token browser for Foundry VTT designed specifically for Forgotten 
 ![Image1](images/Foundry_Virtual_Tabletop_SYXXq4sNhN.png)
 
 ### Token Management
-- **Search Filters**: Use the search bar to filter by name, type, or other criteria, supports AND OR NOT terms
 - **Preview**: Hover over any token to see a larger preview with detailed info as well as correct size/scale grid representation.
-- **Thumbnail Size**: Adjust the thumbnail size using the size selector
-
-https://github.com/user-attachments/assets/1b53dbe4-2636-430a-9363-9e21fbe635b6
-  
 - **Drag & Drop**: Drag tokens directly onto actors (hold shift to skip confirm window) or scenes
 - **Color Variants**: Right Click on a token to view available color variants (When color variants available and option selected)
 - **Wildcard Tokens**: Enable "Randomize Wildcard Images" in the token dialog to download all color variants as wildcards, allowing Foundry to randomly select from available colors
+- **Search Filters**: Use the search bar to filter by name, type, or other criteria, supports AND OR NOT terms
+- **Thumbnail Size**: Adjust the thumbnail size using the size selector
 
-https://github.com/user-attachments/assets/f527f486-2b9d-4223-acc9-c07d5e24ff86
+https://github.com/user-attachments/assets/f371c6d2-922d-4237-9566-eb08c8c6cd18
 
 ## Requirements
 
-- **Foundry VTT**:❗ Version 13 or higher
+- **Foundry VTT**: Version 13 or higher
 - **Game Systems**: Tested with 5ednd, pf1 and pf2e
 - **Internet Connection**: Required for cloud token access and Patreon authentication
 - **Patreon Account**: Required for premium token access (Adventurer tier $7+)
 
 ## Configuration
 
-### ⚙️ Module Settings
+### Module Settings
 The module includes several configurable options accessible through Foundry VTT's module settings:
 
 - **Custom Token Folder**: Set a local storage folder from which to load tokens
@@ -93,7 +87,13 @@ The module includes several configurable options accessible through Foundry VTT'
 - **Large Previews**: Select to increase size of the hover previews (350px instead of 200px default)
 - **Token Cache Directory**: Directory where cloud tokens are cached(downloaded) locally on drag&drop or actor update.
 
-## Support
+### ForgeVTT Users (WIP, limited testing, might be buggy in cases)
+Special optimizations are automatically applied for ForgeVTT environments:
+- Optimized cloud storage operations
+- Enhanced URL handling
+- Improved performance for cloud-hosted games
+
+### Support
 For additional support:
 - Check the [Issues page](https://github.com/Forgotten-Adventures/FA-Token-Browser/issues) for known problems
 - Join the [Forgotten Adventures Discord](https://discord.gg/forgottenadventures) for community support

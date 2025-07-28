@@ -290,7 +290,26 @@ export class PatreonAuthService {
      * @returns {string} UUID string for state parameter
      */
     static generateStateUUID() {
-        return crypto.randomUUID();
+        // Primary: try crypto.randomUUID() (modern browsers)
+        try {
+            if (typeof crypto !== 'undefined' && crypto.randomUUID) {
+                return crypto.randomUUID();
+            }
+        } catch (error) {
+            console.warn('fa-token-browser | crypto.randomUUID() failed, using Foundry fallback:', error);
+        }
+        
+        // Fallback 1: Use Foundry's built-in utility function for generating random IDs
+        if (typeof foundry !== 'undefined' && foundry.utils && foundry.utils.randomID) {
+            return foundry.utils.randomID();
+        }
+        
+        // Fallback 2: Math.random() based UUID generation
+        return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+            const r = Math.random() * 16 | 0;
+            const v = c === 'x' ? r : (r & 0x3 | 0x8);
+            return v.toString(16);
+        });
     }
 
     /**
