@@ -1194,8 +1194,12 @@ Hooks.once('init', async () => {
         // Check if this variant is a locked premium token
         const isPremiumToken = variant.imageData.source === 'cloud' && variant.imageData.tier === 'premium';
         const isLockedToken = isPremiumToken && !isAuthenticated && !variant.imageData.isCached;
+        const isCloudToken = variant.imageData.source === 'cloud';
         
         let className = 'token-base token-item variant-item';
+        if (isCloudToken) {
+          className += ' cloud-token';
+        }
         if (isLockedToken) {
           className += ' locked-token';
         }

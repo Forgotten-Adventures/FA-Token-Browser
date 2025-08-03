@@ -162,7 +162,19 @@ export class TokenCacheManager {
 
     // Check if we have this token cached
     const filename = this._generateCacheFilename(tokenData);
-    const cacheMetadata = this.cacheInventory.get(filename);
+    let cacheMetadata = this.cacheInventory.get(filename);
+    
+    // If not found with exact case, try case-insensitive lookup (Linux filesystem issue)
+    if (!cacheMetadata) {
+      const lowerFilename = filename.toLowerCase();
+      for (const [cachedFilename, metadata] of this.cacheInventory.entries()) {
+        if (cachedFilename.toLowerCase() === lowerFilename) {
+          cacheMetadata = metadata;
+          console.debug(`fa-token-browser | Found cached file with different case: ${cachedFilename} -> ${filename}`);
+          break;
+        }
+      }
+    }
     
     if (cacheMetadata && cacheMetadata.isDownloaded) {
       // We have the file cached
@@ -254,6 +266,7 @@ export class TokenCacheManager {
       const cachePath = `${cacheDir}/${cacheFilename}`;
       
       // Convert blob to File object for Foundry's file system
+      // Explicitly preserve the original filename casing (important for Linux case-sensitive filesystems)
       const file = new File([blob], cacheFilename, { type: blob.type });
       
       // Upload to appropriate storage using current bucket selection
@@ -263,7 +276,13 @@ export class TokenCacheManager {
       
       const storageDesc = bucketOptions.bucket ? `bucket ${bucketOptions.bucket}` : `${storageTarget} storage`;
       console.info(`fa-token-browser | Uploading ${cacheFilename} to ${storageDesc}`);
-      await FilePickerImpl.upload(storageTarget, cacheDir, file, bucketOptions, { notify: false });
+      
+      // Explicitly specify filename in upload options to preserve casing on Linux
+      const uploadOptions = { 
+        notify: false,
+        filename: cacheFilename // Explicitly preserve original filename casing
+      };
+      await FilePickerImpl.upload(storageTarget, cacheDir, file, bucketOptions, uploadOptions);
       
       // Update token cache metadata (store relative path, optimize on retrieval)
       const now = Date.now();

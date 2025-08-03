@@ -1737,6 +1737,7 @@ export class TokenDragDropManager {
    * @returns {boolean} True if handled, false to allow other handlers
    */
   static async handleCanvasDrop(canvas, data, event) {
+    
     // Handle different data formats that might come through Foundry's system
     let dropData = data;
     
@@ -1914,6 +1915,11 @@ export class TokenDragDropManager {
       const canvasElement = canvas.app.view;
       if (canvasElement) {
         canvasElement.addEventListener('dragover', (event) => {
+          // Only handle dragover for token browser drags
+          if (!TokenDragDropManager._isTokenBrowserDragActive) {
+            return; // Let other handlers process non-token-browser drags
+          }
+          
           // Allow drops by preventing default
           event.preventDefault();
           event.dataTransfer.dropEffect = 'copy';
@@ -1931,6 +1937,7 @@ export class TokenDragDropManager {
    * @returns {boolean} True if handled, false if not our drop
    */
   static async handleActorDrop(actorElement, data, event) {
+    
     // Handle different data formats that might come through 
     let dropData = data;
     
