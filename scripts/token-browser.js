@@ -181,10 +181,30 @@ Hooks.once('init', async () => {
     'modules/fa-token-browser/templates/token-update-confirm.hbs'
   ]);
 
+  // Register local-only mode setting
+  game.settings.register('fa-token-browser', 'localOnlyMode', {
+    name: 'Local-Only Mode',
+    hint: 'Disable cloud features and use only local tokens. Improves performance and works offline.',
+    scope: 'world',
+    config: true, // Show in standard Game Settings UI
+    type: Boolean,
+    default: false,
+    restricted: true,
+    onChange: value => {
+      console.log('fa-token-browser | Local-Only Mode setting changed:', value);
+      // Refresh token browser if it's open
+      const existingApp = foundry.applications.instances.get('token-browser-app');
+      if (existingApp) {
+        console.log('fa-token-browser | Refreshing token browser due to local-only mode change');
+        existingApp.render(true);
+      }
+    }
+  });
+
   // Register a module setting for a single custom token folder, shown in Game Settings
   game.settings.register('fa-token-browser', 'customTokenFolder', {
     name: 'Custom Token Folder',
-    hint: 'Select a folder to include in the Token Browser.',
+    hint: 'Select a folder to include in the Token Browser. When Local-Only Mode is enabled, this is the primary source of tokens.',
     scope: 'world',
     config: true, // Show in standard Game Settings UI
     type: String,
@@ -193,6 +213,12 @@ Hooks.once('init', async () => {
     restricted: true,
     onChange: value => {
       console.log('fa-token-browser | Custom Token Folder setting changed:', value);
+      // Refresh token browser if it's open
+      const existingApp = foundry.applications.instances.get('token-browser-app');
+      if (existingApp) {
+        console.log('fa-token-browser | Refreshing token browser due to folder change');
+        existingApp.render(true);
+      }
     }
   });
 
@@ -594,25 +620,44 @@ Hooks.once('init', async () => {
      * Update the title text to include token statistics
      */
     _updateTitleWithStats(titleElement, context) {
-      // Remove existing title content except the custom icon
+      // Helper function to create and append elements
+      const createElement = (tag, className, content) => {
+        const element = document.createElement(tag);
+        if (className) element.className = className;
+        if (content) element.innerHTML = content;
+        return element;
+      };
+
+      // Preserve custom icon and clear title
       const customIcon = titleElement.querySelector('.custom-fa-icon');
       titleElement.innerHTML = '';
-      if (customIcon) {
-        titleElement.appendChild(customIcon);
-      }
+      if (customIcon) titleElement.appendChild(customIcon);
 
-      // Create title with stats
-      const titleTextSpan = document.createElement('span');
-      titleTextSpan.textContent = 'Token Browser';
-      titleElement.appendChild(titleTextSpan);
+      // Add title text
+      const titleText = context.localOnlyMode ? 'Local Token Browser' : 'Token Browser';
+      titleElement.appendChild(createElement('span', null, titleText));
 
-      // Add token stats if we have both cloud and local tokens
-      if (context.cloudTokenCount > 0 && context.localTokenCount >= 0) {
-        const statsSpan = document.createElement('span');
-        statsSpan.className = 'title-stats';
-        statsSpan.innerHTML = ` ( ${context.cloudTokenCount} <i class="fas fa-cloud title-cloud-icon"></i> + ${context.localTokenCount} local Tokens )`;
-        titleElement.appendChild(statsSpan);
+      // Add stats if available
+      const statsContent = this._generateStatsContent(context);
+      if (statsContent) {
+        titleElement.appendChild(createElement('span', 'title-stats', statsContent));
       }
+    }
+
+    /**
+     * Generate stats content based on context and mode
+     * @private
+     */
+    _generateStatsContent(context) {
+      const { localOnlyMode, localTokenCount, cloudTokenCount } = context;
+      
+      if (localOnlyMode) {
+        return localTokenCount >= 0 ? ` ( ${localTokenCount} local Tokens )` : null;
+      }
+      
+      return (cloudTokenCount > 0 && localTokenCount >= 0) 
+        ? ` ( ${cloudTokenCount} <i class="fas fa-cloud title-cloud-icon"></i> + ${localTokenCount} local Tokens )`
+        : null;
     }
 
     /**
@@ -623,6 +668,12 @@ Hooks.once('init', async () => {
       const existingAuth = headerContent.querySelector('.header-patreon-auth');
       if (existingAuth) {
         existingAuth.remove();
+      }
+
+      // Skip Patreon auth UI in local-only mode
+      if (context.localOnlyMode) {
+        console.log('fa-token-browser | Local-only mode: skipping Patreon auth UI');
+        return;
       }
 
       const authContainer = document.createElement('div');
@@ -716,10 +767,13 @@ Hooks.once('init', async () => {
       // Provide the manifest of images for the template
       try {
         const customTokenFolder = game.settings.get('fa-token-browser', 'customTokenFolder') || '';
+        const localOnlyMode = this.tokenDataService.isLocalOnlyMode();
         
         // Update loading progress during initial load
         if (this._isInitialLoad) {
-          tokenBrowserLoader.updateText('Loading FA Token Browser...', 'Initializing local & cloud tokens...');
+          const loadingText = localOnlyMode ? 'Loading Local Token Browser...' : 'Loading FA Token Browser...';
+          const loadingSubtext = localOnlyMode ? 'Scanning local token folder...' : 'Initializing local & cloud tokens...';
+          tokenBrowserLoader.updateText(loadingText, loadingSubtext);
         }
         
         // Check if loading was cancelled
@@ -728,7 +782,7 @@ Hooks.once('init', async () => {
           throw new Error('Loading cancelled by user');
         }
         
-        // Get combined local and cloud tokens using TokenDataService
+        // Get combined local and cloud tokens using TokenDataService (respects local-only mode)
         const combinedTokenData = await this.tokenDataService.getCombinedTokens(customTokenFolder, true);
         
         // Check again after potentially long cloud token fetch
@@ -739,7 +793,8 @@ Hooks.once('init', async () => {
         
         // Update loading progress
         if (this._isInitialLoad) {
-          tokenBrowserLoader.updateText('Loading FA Token Browser...', 'Processing token data...');
+          const loadingText = localOnlyMode ? 'Local Token Browser Ready!' : 'Loading FA Token Browser...';
+          tokenBrowserLoader.updateText(loadingText, 'Processing token data...');
         }
         
         // Convert TokenData to UI-compatible format for gradual migration
@@ -757,14 +812,18 @@ Hooks.once('init', async () => {
         
         // Update loading progress
         if (this._isInitialLoad) {
-          tokenBrowserLoader.updateText('FA Token Browser Ready!', `Found ${localCount} local and ${cloudCount} cloud tokens.`);
+          if (localOnlyMode) {
+            tokenBrowserLoader.updateText('Local Token Browser Ready!', `Found ${localCount} local tokens.`);
+          } else {
+            tokenBrowserLoader.updateText('FA Token Browser Ready!', `Found ${localCount} local and ${cloudCount} cloud tokens.`);
+          }
         }
         
         const searchContext = this.searchManager.getSearchContext();
         
-        // Get authentication data for template
-        const authData = game.settings.get('fa-token-browser', 'patreon_auth_data');
-        const isAuthenticated = authData && authData.authenticated;
+        // Get authentication data for template (only relevant in non-local-only mode)
+        const authData = !localOnlyMode ? game.settings.get('fa-token-browser', 'patreon_auth_data') : null;
+        const isAuthenticated = !localOnlyMode && authData && authData.authenticated;
         const userTier = isAuthenticated ? authData.tier : null;
         
         // Check if color variants are available (simplified logic)
@@ -775,7 +834,9 @@ Hooks.once('init', async () => {
           customTokenFolder,
           cloudTokenCount: cloudCount,
           localTokenCount: localCount,
-          // Auth context for template
+          // Local-only mode flag for template
+          localOnlyMode,
+          // Auth context for template (disabled in local-only mode)
           isAuthenticated,
           userTier,
           // Color variants availability for template
@@ -796,6 +857,8 @@ Hooks.once('init', async () => {
           console.log('fa-token-browser | _prepareContext cancelled by user, skipping error display');
         }
         
+        const localOnlyMode = this.tokenDataService.isLocalOnlyMode();
+        
         return { 
           images: [],
           customTokenFolder: '',
@@ -805,6 +868,8 @@ Hooks.once('init', async () => {
           hasMore: false,
           searchQuery: '',
           error: error.message,
+          // Local-only mode flag for template
+          localOnlyMode,
           // Auth context for error case
           isAuthenticated: false,
           userTier: null,
@@ -1818,7 +1883,3 @@ Hooks.on('renderActorDirectory', (_, html) => {
         $(html).append(tokenBrowserButton);
     }
 });
-
-
-
-

@@ -147,6 +147,14 @@ export class TokenDataService {
     }
   }
 
+  /**
+   * Check if local-only mode is enabled
+   * @returns {boolean} True if local-only mode is active
+   */
+  isLocalOnlyMode() {
+    return game.settings.get('fa-token-browser', 'localOnlyMode') || false;
+  }
+
 
 
   /**
@@ -410,14 +418,22 @@ export class TokenDataService {
    * @returns {Promise<Array<TokenData>>} Combined array of TokenData objects
    */
   async getCombinedTokens(localFolder, includeCloud = true) {
-    // Initialize cache system proactively when loading tokens
-    if (includeCloud) {
+    // Check if local-only mode is enabled
+    const localOnlyMode = this.isLocalOnlyMode();
+    
+    if (localOnlyMode) {
+      console.log('fa-token-browser | Local-only mode enabled, skipping cloud tokens');
+      includeCloud = false;
+    }
+    
+    // Initialize cache system proactively when loading tokens (only if cloud tokens are included)
+    if (includeCloud && !localOnlyMode) {
       await this.cacheManager.initialize();
     }
     
     const results = await Promise.allSettled([
       localFolder ? this.fetchLocalTokens(localFolder) : Promise.resolve([]),
-      includeCloud ? this.cloudService.fetchAvailableTokens() : Promise.resolve([])
+      (includeCloud && !localOnlyMode) ? this.cloudService.fetchAvailableTokens() : Promise.resolve([])
     ]);
     
     const localTokens = results[0].status === 'fulfilled' ? results[0].value : [];
@@ -427,11 +443,17 @@ export class TokenDataService {
       console.warn('fa-token-browser | Local token fetch failed:', results[0].reason);
     }
     
-    if (results[1].status === 'rejected') {
+    if (results[1].status === 'rejected' && !localOnlyMode) {
       console.warn('fa-token-browser | Cloud token fetch failed:', results[1].reason);
     }
     
     const combined = [...localTokens, ...cloudTokens];
+    
+    if (localOnlyMode) {
+      console.log(`fa-token-browser | Local-only mode: loaded ${localTokens.length} local tokens`);
+    } else {
+      console.log(`fa-token-browser | Combined mode: loaded ${localTokens.length} local + ${cloudTokens.length} cloud tokens`);
+    }
     
     return combined;
   }
@@ -496,4 +518,4 @@ export class TokenDataService {
     this.cacheManager = null;
     this.cloudService = null;
   }
-} 
+}
