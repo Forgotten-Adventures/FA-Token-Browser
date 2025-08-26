@@ -99,3 +99,5 @@ For additional support:
 - Join the [Forgotten Adventures Discord](https://discord.gg/forgottenadventures) for community support
 
 **Made with ❤ by the Forgotten Adventures team** 
+
+This project’s code is MIT‑licensed. However, some content (e.g., token images/assets) is subject to Forgotten Adventures’ asset licensing terms—see [link](https://www.forgotten-adventures.net/copyright) for details.
