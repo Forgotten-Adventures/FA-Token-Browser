@@ -1,0 +1,55 @@
+<div class="fa-token-browser-folder-selection-dialog">
+  <div class="fa-token-browser-folder-selection-header">
+    <p>Select the folders containing your token images. These folders will be scanned for token images when the Token Browser loads.</p>
+    <button type="button" id="add-folder-btn" class="fa-token-browser-add-folder-button">
+      <i class="fas fa-plus"></i>
+      Add Folder
+    </button>
+  </div>
+
+  {{#if hasFolders}}
+    <div class="fa-token-browser-folder-list">
+      <div class="fa-token-browser-folder-list-header">
+        <span class="fa-token-browser-folder-count">{{enabledCount}} of {{totalCount}} folder(s) enabled</span>
+      </div>
+
+      <div class="fa-token-browser-folder-items">
+        {{#each folders}}
+          <div class="fa-token-browser-folder-item {{#unless enabled}}fa-token-browser-folder-disabled{{/unless}}" data-index="{{@index}}">
+            <div class="fa-token-browser-folder-enable">
+              <input type="checkbox" class="fa-token-browser-folder-checkbox" data-index="{{@index}}" {{#if enabled}}checked{{/if}}>
+            </div>
+            <div class="fa-token-browser-folder-content">
+              <div class="fa-token-browser-folder-info">
+                <div class="fa-token-browser-folder-label" data-index="{{@index}}" title="Click to edit label">{{#if customLabel}}{{customLabel}}{{else}}{{label}}{{/if}}</div>
+                <div class="fa-token-browser-folder-path">{{path}}</div>
+              </div>
+              <div class="fa-token-browser-folder-actions">
+                <button type="button" class="fa-token-browser-edit-folder-btn" data-index="{{@index}}" title="Change folder">
+                  <i class="fas fa-edit"></i>
+                </button>
+                <button type="button" class="fa-token-browser-remove-folder-btn" data-index="{{@index}}" title="Remove folder">
+                  <i class="fas fa-trash"></i>
+                </button>
+              </div>
+            </div>
+          </div>
+        {{/each}}
+      </div>
+    </div>
+  {{else}}
+    <div class="fa-token-browser-no-folders-message">
+      <i class="fas fa-folder-open"></i>
+      <p>No folders selected yet.</p>
+      <p>Click "Add Folder" to choose your first token folder.</p>
+    </div>
+  {{/if}}
+
+  <div class="fa-token-browser-folder-selection-footer">
+    <button type="button" id="cancel-folders-btn" class="fa-token-browser-cancel-button">Cancel</button>
+    <button type="button" id="save-folders-btn" class="fa-token-browser-save-button">
+      <i class="fas fa-save"></i>
+      Save Configuration
+    </button>
+  </div>
+</div>

@@ -98,6 +98,33 @@ const ACTOR_TYPE_MAPPINGS = {
     description: 'Forbidden Lands'
   },
   
+  // Das Schwarze Auge / The Dark Eye 5th Edition
+  'dsa5': {
+    defaultType: 'creature',
+    supportedTypes: ['character', 'creature', 'npc'],
+    requiredFields: ['name', 'type'],
+    optionalFields: ['img'],
+    description: 'Das Schwarze Auge / The Dark Eye 5th Edition'
+  },
+
+  // Black Flag Roleplaying
+  'black-flag': {
+    defaultType: 'npc',
+    supportedTypes: ['pc', 'npc', 'lair', 'siege', 'vehicle'],
+    requiredFields: ['name', 'type'],
+    optionalFields: ['img'],
+    description: 'Black Flag Roleplaying'
+  },
+
+  // Daggerheart
+  'daggerheart': {
+    defaultType: 'adversary',
+    supportedTypes: ['character', 'companion', 'adversary', 'environment'],
+    requiredFields: ['name', 'type'],
+    optionalFields: ['img'],
+    description: 'Daggerheart'
+  },
+
   // Generic fallback for unknown systems
   'generic': {
     defaultType: 'character',

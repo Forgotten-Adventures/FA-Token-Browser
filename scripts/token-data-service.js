@@ -392,10 +392,10 @@ export class TokenDataService {
     try {
       // Use the scanTokenFolder method from local service
       const rawLocalTokens = await this.localService.scanTokenFolder(folder);
-      
+
       // Convert to TokenData format
       const tokenDataArray = this.localService.convertLocalTokens(rawLocalTokens);
-      
+
       return tokenDataArray;
     } catch (error) {
       console.error('fa-token-browser | Error fetching local tokens:', error);
@@ -404,47 +404,91 @@ export class TokenDataService {
   }
 
   /**
+   * Fetch local tokens from multiple folders
+   * @param {Array<string>} folders - Array of local folders to scan
+   * @returns {Promise<Array<TokenData>>} Array of local TokenData objects
+   */
+  async fetchLocalTokensFromMultipleFolders(folders) {
+    if (!folders || !folders.length) {
+      return [];
+    }
+
+    try {
+      // Fetch tokens from all folders concurrently
+      const results = await Promise.allSettled(
+        folders.map(folder => this.fetchLocalTokens(folder))
+      );
+
+      // Combine results from all folders
+      const allTokens = [];
+      results.forEach((result, index) => {
+        if (result.status === 'fulfilled') {
+          allTokens.push(...result.value);
+        } else {
+          console.warn(`fa-token-browser | Failed to fetch tokens from folder "${folders[index]}":`, result.reason);
+        }
+      });
+
+      return allTokens;
+    } catch (error) {
+      console.error('fa-token-browser | Error fetching local tokens from multiple folders:', error);
+      return [];
+    }
+  }
+
+  /**
    * Get combined local and cloud tokens
-   * @param {string} localFolder - Local folder to scan
+   * @param {Array<string>} localFolders - Array of local folders to scan
    * @param {boolean} includeCloud - Whether to include cloud tokens
    * @returns {Promise<Array<TokenData>>} Combined array of TokenData objects
    */
-  async getCombinedTokens(localFolder, includeCloud = true) {
+  async getCombinedTokens(localFolders, includeCloud = true) {
     // Initialize cache system proactively when loading tokens
     if (includeCloud) {
       await this.cacheManager.initialize();
     }
-    
+
+    // Convert single folder to array for backward compatibility
+    if (typeof localFolders === 'string') {
+      localFolders = localFolders ? [localFolders] : [];
+    }
+
+    // Ensure localFolders is an array
+    if (!Array.isArray(localFolders)) {
+      localFolders = [];
+    }
+
     const results = await Promise.allSettled([
-      localFolder ? this.fetchLocalTokens(localFolder) : Promise.resolve([]),
+      this.fetchLocalTokensFromMultipleFolders(localFolders),
       includeCloud ? this.cloudService.fetchAvailableTokens() : Promise.resolve([])
     ]);
-    
+
     const localTokens = results[0].status === 'fulfilled' ? results[0].value : [];
     const cloudTokens = results[1].status === 'fulfilled' ? results[1].value : [];
-    
+
     if (results[0].status === 'rejected') {
       console.warn('fa-token-browser | Local token fetch failed:', results[0].reason);
     }
-    
+
     if (results[1].status === 'rejected') {
       console.warn('fa-token-browser | Cloud token fetch failed:', results[1].reason);
     }
-    
+
     const combined = [...localTokens, ...cloudTokens];
-    
+
     return combined;
   }
 
   /**
    * Convert TokenData array to UI-compatible format (for gradual migration)
    * @param {Array<TokenData>} tokenDataArray - Array of TokenData objects
+   * @param {boolean} showDuplicates - Whether to show duplicate tokens (default: true)
    * @returns {Array} UI-compatible token objects
    */
-  convertTokenDataForUI(tokenDataArray) {
-    return tokenDataArray.map(tokenData => {
+      convertTokenDataForUI(tokenDataArray, showDuplicates = true) {
+    let processedTokens = tokenDataArray.map(tokenData => {
       const { displayName, variant, size, scale, creatureType } = parseTokenDisplayName(tokenData.filename);
-      
+
       return {
         path: tokenData.path,
         filename: tokenData.filename,
@@ -466,6 +510,113 @@ export class TokenDataService {
         _tokenData: tokenData
       };
     });
+
+    // If duplicates should be hidden, deduplicate by filename
+    if (!showDuplicates) {
+      processedTokens = this._deduplicateTokens(processedTokens);
+    }
+
+    return processedTokens;
+  }
+
+  /**
+   * Filter folders to only include enabled ones
+   * @param {Array<string>} folderPaths - Array of folder paths
+   * @returns {Array<string>} Array of enabled folder paths
+   */
+  filterEnabledFolders(folderPaths) {
+    try {
+      const folderData = game.settings.get('fa-token-browser', 'customTokenFolders') || '[]';
+      const folders = JSON.parse(folderData);
+
+      if (!Array.isArray(folders)) {
+        return folderPaths; // Fallback to all folders if data is invalid
+      }
+
+      // Create a map of path -> enabled status
+      const enabledFolders = new Map();
+      folders.forEach(folder => {
+        if (folder.enabled !== false) { // Default to true if not specified
+          enabledFolders.set(folder.path, true);
+        }
+      });
+
+      // Filter folder paths to only include enabled ones
+      return folderPaths.filter(path => enabledFolders.has(path));
+    } catch (error) {
+      console.warn('fa-token-browser | Error filtering enabled folders:', error);
+      return folderPaths; // Fallback to all folders on error
+    }
+  }
+
+  /**
+   * Remove duplicate tokens based on filename, preferring local over cloud
+   * Enhances local tokens with cloud thumbnails when available
+   * @param {Array} uiTokens - Array of UI-compatible token objects
+   * @returns {Array} Deduplicated array of tokens with enhanced thumbnails
+   * @private
+   */
+  _deduplicateTokens(uiTokens) {
+    const cloudThumbnails = new Map();
+
+    // First pass: collect all cloud token thumbnails by filename
+    uiTokens.forEach(token => {
+      if (token.source === 'cloud') {
+        cloudThumbnails.set(token.filename, {
+          url: token.url,
+          fullUrl: token.fullUrl,
+          source: token.source
+        });
+      }
+    });
+
+    // Second pass: deduplicate and enhance with cloud thumbnails
+    // Group tokens by filename first for better processing
+    const tokensByFilename = new Map();
+
+    uiTokens.forEach(token => {
+      const filename = token.filename;
+      if (!tokensByFilename.has(filename)) {
+        tokensByFilename.set(filename, []);
+      }
+      tokensByFilename.get(filename).push(token);
+    });
+
+    const deduplicated = [];
+
+    // Process each group of tokens with the same filename
+    for (const [filename, tokenGroup] of tokensByFilename) {
+      if (tokenGroup.length === 1) {
+        // No duplicate, just add it
+        deduplicated.push(tokenGroup[0]);
+      } else {
+        // Has duplicates - prefer local over cloud, enhance with cloud thumbnail
+        const localToken = tokenGroup.find(t => t.source === 'local');
+        const cloudToken = tokenGroup.find(t => t.source === 'cloud');
+
+        if (localToken && cloudToken && cloudThumbnails.has(filename)) {
+          // Enhance local token with cloud thumbnail
+          const cloudData = cloudThumbnails.get(filename);
+
+          localToken.originalUrl = localToken.url;
+          localToken.url = cloudData.url;
+          localToken.enhancedThumbnail = true;
+
+          deduplicated.push(localToken);
+        } else if (localToken) {
+          // Keep local token without enhancement
+          deduplicated.push(localToken);
+        } else if (cloudToken) {
+          // No local token, keep cloud token
+          deduplicated.push(cloudToken);
+        } else {
+          // Fallback: keep first token
+          deduplicated.push(tokenGroup[0]);
+        }
+      }
+    }
+
+    return deduplicated;
   }
 
   /**

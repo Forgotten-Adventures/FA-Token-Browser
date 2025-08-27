@@ -42,7 +42,7 @@
       {{#each images}}
         <div class="token-base token-item {{#if (eq source 'cloud')}}cloud-token{{/if}}{{#if (and (eq source 'cloud') (eq tier 'premium') (not ../isAuthenticated) (not isCached))}} locked-token{{/if}}" data-path="{{path}}" data-filename="{{filename}}" data-source="{{source}}" {{#if tier}}data-tier="{{tier}}"{{/if}} {{#if (and (eq source 'cloud') (eq tier 'premium') (not ../isAuthenticated) (not isCached))}}draggable="false" style="cursor: not-allowed;"{{else if (eq source 'cloud')}}draggable="false"{{else}}draggable="false"{{/if}}>
           <div class="token-thumbnail">
-            <img src="{{url}}" alt="{{filename}}" />
+            <img src="{{url}}" alt="{{filename}}" {{#if originalUrl}}data-original-url="{{originalUrl}}"{{/if}} {{#if enhancedThumbnail}}onerror="this.src=this.getAttribute('data-original-url');"{{/if}} />
             {{#if variant}}
               <div class="token-variant">{{variant}}</div>
             {{/if}}
@@ -85,9 +85,13 @@
     </div>
   {{else}}
     <div class="token-empty-state">
-      <p><em>No images found in the selected folder.</em></p>
-      <p><strong>Current folder:</strong> "{{customTokenFolder}}"</p>
-      <p>Go to <strong>Game Settings > Module Settings</strong> to configure a token folder.</p>
+      <p><em>No images found in the selected folders.</em></p>
+      {{#if customTokenFoldersString}}
+        <p><strong>Current folders:</strong> "{{customTokenFoldersString}}"</p>
+      {{else}}
+        <p><strong>No folders configured.</strong></p>
+      {{/if}}
+      <p>Go to <strong>Game Settings > Module Settings</strong> to configure token folders.</p>
     </div>
   {{/if}}
   

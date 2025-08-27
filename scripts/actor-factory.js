@@ -220,6 +220,12 @@ export class ActorFactory {
         return this._enhanceForPf2e(actorData, actorType, dragData);
       case 'pf1':
         return this._enhanceForPf1(actorData, actorType, dragData);
+      case 'dsa5':
+        return this._enhanceForDsa5(actorData, actorType, dragData);
+      case 'black-flag':
+        return this._enhanceForBlackFlag(actorData, actorType, dragData);
+      case 'daggerheart':
+        return this._enhanceForDaggerheart(actorData, actorType, dragData);
       default:
         return actorData; // Keep minimal data for unknown systems
     }
@@ -457,7 +463,174 @@ export class ActorFactory {
     console.log(`fa-token-browser | PF1: Set creature size to "${sizeCategory}" (${gridWidth}x${gridHeight}) with ${scale}x scale for ${actorData.name}`);
     return actorData;
   }
-  
+
+  /**
+   * Enhance actor data for DSA5 system
+   * @param {Object} actorData - Base actor data
+   * @param {string} actorType - Actor type
+   * @param {Object} dragData - Drag data
+   * @returns {Object} Enhanced actor data
+   */
+  static _enhanceForDsa5(actorData, actorType, dragData) {
+    // Get token size information including scale
+    const { gridWidth, gridHeight, scale } = dragData.tokenSize;
+    const sizeCategory = this._getCreatureSizeFromGridDimensions(gridWidth, gridHeight);
+
+    // DSA5 has different actor types with different structures
+    actorData.system = actorData.system || {};
+
+    // Apply the calculated size category to DSA5 actor data
+    actorData.system.status = actorData.system.status || {};
+    actorData.system.status.size = { value: sizeCategory };
+
+    switch (actorType) {
+      case 'character':
+        // Character actors need basic attributes and status
+        actorData.system.status.wounds = { value: 10, max: 10 };
+        actorData.system.status.astralenergy = { value: 10, max: 10 };
+        actorData.system.status.karmaenergy = { value: 0, max: 0 };
+        break;
+
+      case 'creature':
+        // Creature actors need different structure
+        actorData.system.description = actorData.system.description || { value: '' };
+        actorData.system.behavior = actorData.system.behavior || { value: '' };
+        actorData.system.flight = actorData.system.flight || { value: '' };
+        actorData.system.specialRules = actorData.system.specialRules || { value: '' };
+        break;
+
+      case 'npc':
+        // NPC actors similar to characters but may have different attributes
+        actorData.system.status.wounds = { value: 10, max: 10 };
+        actorData.system.status.astralenergy = { value: 10, max: 10 };
+        actorData.system.status.karmaenergy = { value: 0, max: 0 };
+        break;
+    }
+
+    // Apply custom scale to prototype token and prevent DSA5 from overriding it
+    if (actorData.prototypeToken) {
+      // Set flags to preserve our custom scale
+      actorData.prototypeToken.flags = actorData.prototypeToken.flags || {};
+      actorData.prototypeToken.flags['fa-token-browser'] = {
+        customScale: true,
+        originalScale: scale
+      };
+
+      // Apply the parsed scale to the texture
+      if (actorData.prototypeToken.texture) {
+        actorData.prototypeToken.texture.scaleX = scale;
+        actorData.prototypeToken.texture.scaleY = scale;
+      }
+
+      // Disable DSA5's automatic scale adjustments
+      actorData.prototypeToken.flags.dsa5 = actorData.prototypeToken.flags.dsa5 || {};
+      actorData.prototypeToken.flags.dsa5.linkToActorSize = false;
+
+      // Additional protection: Set the scale directly on the token data
+      actorData.prototypeToken.scale = scale;
+    }
+
+    console.log(`fa-token-browser | DSA5: Created ${actorType} with size category "${sizeCategory}" (${gridWidth}x${gridHeight}) with ${scale}x scale for ${actorData.name}`);
+    return actorData;
+  }
+
+  /**
+   * Enhance actor data for Black Flag system
+   * @param {Object} actorData - Base actor data
+   * @param {string} actorType - Actor type
+   * @param {Object} dragData - Drag data
+   * @returns {Object} Enhanced actor data
+   */
+  static _enhanceForBlackFlag(actorData, actorType, dragData) {
+    // Set the actor's size category to match our parsed token dimensions
+    const { gridWidth, gridHeight } = dragData.tokenSize;
+    const sizeCategory = this._getCreatureSizeFromGridDimensions(gridWidth, gridHeight);
+
+    // Black Flag has different actor types with different structures
+    actorData.system = actorData.system || {};
+
+    switch (actorType) {
+      case 'pc':
+        // Player Character actors need basic attributes and status
+        actorData.system.attributes = actorData.system.attributes || {};
+        actorData.system.attributes.hp = { value: 10, max: 10 };
+        actorData.system.attributes.ac = { value: 10 };
+        break;
+
+      case 'npc':
+        // NPC actors need attributes and status
+        actorData.system.attributes = actorData.system.attributes || {};
+        actorData.system.attributes.hp = { value: 10, max: 10 };
+        actorData.system.attributes.ac = { value: 10 };
+        break;
+
+      case 'lair':
+        // Lair actors have different structure
+        actorData.system.description = actorData.system.description || {};
+        actorData.system.description.conclusion = actorData.system.description.conclusion || '';
+        actorData.system.description.lairActions = actorData.system.description.lairActions || '';
+        actorData.system.description.regionalEffects = actorData.system.description.regionalEffects || '';
+        actorData.system.description.value = actorData.system.description.value || '';
+        break;
+
+      case 'siege':
+      case 'vehicle':
+        // Siege and vehicle actors
+        actorData.system.description = actorData.system.description || { value: '' };
+        break;
+    }
+
+    console.log(`fa-token-browser | Black Flag: Created ${actorType} with size category "${sizeCategory}" (${gridWidth}x${gridHeight}) for ${actorData.name}`);
+    return actorData;
+  }
+
+  /**
+   * Enhance actor data for Daggerheart system
+   * @param {Object} actorData - Base actor data
+   * @param {string} actorType - Actor type
+   * @param {Object} dragData - Drag data
+   * @returns {Object} Enhanced actor data
+   */
+  static _enhanceForDaggerheart(actorData, actorType, dragData) {
+    // Set the actor's size category to match our parsed token dimensions
+    const { gridWidth, gridHeight } = dragData.tokenSize;
+    const sizeCategory = this._getCreatureSizeFromGridDimensions(gridWidth, gridHeight);
+
+    // Daggerheart has different actor types with different structures
+    actorData.system = actorData.system || {};
+
+    switch (actorType) {
+      case 'character':
+        // Character actors need basic attributes and status
+        actorData.system.resources = actorData.system.resources || {};
+        actorData.system.resources.hitPoints = { value: 10, max: 10 };
+        actorData.system.resources.stress = { value: 0, max: 10 };
+        break;
+
+      case 'companion':
+        // Companion actors similar to characters
+        actorData.system.resources = actorData.system.resources || {};
+        actorData.system.resources.hitPoints = { value: 10, max: 10 };
+        actorData.system.resources.stress = { value: 0, max: 10 };
+        break;
+
+      case 'adversary':
+        // Adversary actors need different structure
+        actorData.system.notes = actorData.system.notes || '';
+        actorData.system.description = actorData.system.description || '';
+        break;
+
+      case 'environment':
+        // Environment actors
+        actorData.system.notes = actorData.system.notes || '';
+        actorData.system.description = actorData.system.description || '';
+        break;
+    }
+
+    console.log(`fa-token-browser | Daggerheart: Created ${actorType} with size category "${sizeCategory}" (${gridWidth}x${gridHeight}) for ${actorData.name}`);
+    return actorData;
+  }
+
   /**
    * Map grid dimensions to creature size categories
    * @param {number} gridWidth - Token width in grid units
@@ -466,16 +639,17 @@ export class ActorFactory {
    */
   static _getCreatureSizeFromGridDimensions(gridWidth, gridHeight) {
     // Use the larger dimension to determine size category
+    // Maps to DSA5's actual size values: tiny, small, average, big, giant
     const maxDimension = Math.max(gridWidth, gridHeight);
-    
+
     if (maxDimension >= 4) {
-      return 'grg';  // Gargantuan (4x4 or larger)
+      return 'giant';  // Gargantuan (4x4 or larger) -> Giant
     } else if (maxDimension >= 3) {
-      return 'huge'; // Huge (3x3)
+      return 'giant';  // Huge (3x3) -> Giant
     } else if (maxDimension >= 2) {
-      return 'lg';   // Large (2x2)
+      return 'big';    // Large (2x2) -> Big
     } else {
-      return 'med';  // Medium and smaller (1x1) - includes Tiny and Small
+      return 'average'; // Medium and smaller (1x1) -> Average
     }
   }
   
@@ -545,6 +719,17 @@ export class ActorFactory {
         fit: textureFit         // Apply optimized fit mode
       }
     };
+
+    // Additional protection for DSA5: Ensure scale is preserved in final token data
+    if (game.system.id === 'dsa5' && actor.getFlag('fa-token-browser', 'customScale')) {
+      const originalScale = actor.getFlag('fa-token-browser', 'originalScale');
+      if (originalScale) {
+        baseTokenData.texture.scaleX = originalScale;
+        baseTokenData.texture.scaleY = originalScale;
+        // Also set the overall token scale as backup
+        baseTokenData.scale = originalScale;
+      }
+    }
     
     // Apply prototype token overrides from the actor and global settings
     const tokenData = this._applyPrototypeTokenOverrides(actor, baseTokenData);
@@ -554,7 +739,65 @@ export class ActorFactory {
     
     return tokens[0];
   }
-  
+
+  /**
+   * Initialize DSA5 scale restoration hook
+   * This ensures DSA5 doesn't override our custom token scales
+   */
+  static _initializeDSA5ScaleFix() {
+    if (window.faTokenBrowser?.dsa5ScaleFixRegistered) return;
+
+    Hooks.on('createToken', (token, options, userId) => {
+      // Only process for DSA5 system
+      if (game.system.id !== 'dsa5') return;
+
+      const actor = token.actor;
+      if (!actor) return;
+
+      // Wait for DSA5 to finish applying its scaling, then restore from prototype token
+      setTimeout(() => {
+        ActorFactory._restorePrototypeTokenScale(token, actor);
+      }, 50); // Give DSA5 time to apply its scaling first
+    });
+
+    if (window.faTokenBrowser) {
+      window.faTokenBrowser.dsa5ScaleFixRegistered = true;
+    }
+  }
+
+  /**
+   * Restore prototype token scale after DSA5 scaling
+   * @param {Token} token - The token that was created
+   * @param {Actor} actor - The actor associated with the token
+   */
+  static _restorePrototypeTokenScale(token, actor) {
+    if (!token || !actor) return;
+
+    // Get the scale from the actor's prototype token (this is our original custom scale)
+    const prototypeToken = actor.prototypeToken;
+    if (!prototypeToken?.texture?.scaleX) return;
+
+    const prototypeScaleX = prototypeToken.texture.scaleX;
+    const prototypeScaleY = prototypeToken.texture.scaleY;
+
+    // Get current token scale
+    const currentScaleX = token.texture.scaleX;
+    const currentScaleY = token.texture.scaleY;
+
+    // Check if DSA5 has changed the scale from our prototype values
+    const scaleChanged = Math.abs(currentScaleX - prototypeScaleX) > 0.01 ||
+                        Math.abs(currentScaleY - prototypeScaleY) > 0.01;
+
+    if (scaleChanged) {
+      console.log(`fa-token-browser | DSA5 Scale Fix: Restoring prototype scale ${prototypeScaleX.toFixed(3)}x${prototypeScaleY.toFixed(3)} (was ${currentScaleX.toFixed(3)}x${currentScaleY.toFixed(3)}) for ${actor.name}`);
+
+      // Restore the scale from the prototype token instantly (no animation)
+      token.update({
+        'texture.scaleX': prototypeScaleX,
+        'texture.scaleY': prototypeScaleY
+      }, { animate: false });
+    }
+  }
 
 }
 

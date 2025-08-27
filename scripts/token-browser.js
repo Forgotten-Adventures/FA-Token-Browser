@@ -11,6 +11,7 @@ import { TokenDragDropManager } from './token-dragdrop-manager.js';
 import { EventManager } from './event-manager.js';
 import { LazyLoadingManager } from './lazy-loading-manager.js';
 import { ForgeIntegrationService, forgeIntegration } from './forge-integration.js';
+import { FolderSelectionDialog } from './folder-selection-dialog.js';
 
 export const TOKEN_BROWSER_VERSION = "0.0.1";
 
@@ -178,22 +179,56 @@ Hooks.once('init', async () => {
   await foundry.applications.handlebars.loadTemplates([
     'modules/fa-token-browser/templates/token-browser.hbs',
     'modules/fa-token-browser/templates/oauth-window.hbs',
-    'modules/fa-token-browser/templates/token-update-confirm.hbs'
+    'modules/fa-token-browser/templates/token-update-confirm.hbs',
+    'modules/fa-token-browser/templates/folder-selection-dialog.hbs'
   ]);
 
-  // Register a module setting for a single custom token folder, shown in Game Settings
-  game.settings.register('fa-token-browser', 'customTokenFolder', {
-    name: 'Custom Token Folder',
-    hint: 'Select a folder to include in the Token Browser.',
+  // Register the actual folder data setting (hidden from UI)
+  game.settings.register('fa-token-browser', 'customTokenFolders', {
+    name: 'Custom Token Folders Data',
     scope: 'world',
-    config: true, // Show in standard Game Settings UI
+    config: false, // Hidden from UI
     type: String,
-    default: '',
-    filePicker: 'folder', // Adds a folder picker button
+    default: '[]',
     restricted: true,
-    onChange: value => {
-      console.log('fa-token-browser | Custom Token Folder setting changed:', value);
+    onChange: async value => {
+      console.log('fa-token-browser | Custom Token Folders setting changed:', value);
+      const existingApp = foundry.applications.instances.get('token-browser-app');
+      if (existingApp) {
+        console.log('fa-token-browser | Auto-refreshing Token Browser due to custom token folders change');
+
+        // Preserve search state before refresh
+        const currentSearchQuery = existingApp.searchManager?.searchQuery || '';
+
+        // Refresh the app
+        await existingApp.render(true);
+
+        // Restore search state after refresh
+        if (currentSearchQuery && existingApp.searchManager) {
+
+          const searchInput = existingApp.element?.querySelector('#token-search');
+          if (searchInput) {
+            searchInput.value = currentSearchQuery;
+            const wrapper = existingApp.element?.querySelector('.search-input-wrapper');
+            if (wrapper) {
+              wrapper.classList.add('has-text');
+            }
+            // Re-run the search with the restored query
+            existingApp.searchManager.performSearch(currentSearchQuery);
+          }
+        }
+      }
     }
+  });
+
+  // Register a menu setting for folder configuration
+  game.settings.registerMenu('fa-token-browser', 'folderSelectionMenu', {
+    name: 'Local Token Folders',
+    label: 'Configure Sources',
+    hint: 'Open the folder selection dialog to configure which folders contain your token images. In Local-Only mode, this is your primary token source.',
+    icon: 'fas fa-folder',
+    type: FolderSelectionDialog,
+    restricted: true
   });
 
   // Register actor folder setting  
@@ -231,6 +266,46 @@ Hooks.once('init', async () => {
     restricted: false,
     onChange: value => {
       console.log('fa-token-browser | Larger Previews setting changed:', value);
+    }
+  });
+
+  // Register show duplicates setting
+  game.settings.register('fa-token-browser', 'showDuplicates', {
+    name: 'Show Duplicate Tokens',
+    hint: 'When disabled (default), only show one instance of each token when the same token exists in multiple sources (Cloud and Local). When enabled, show all instances.',
+    scope: 'client',
+    config: true, // Show in Game Settings UI
+    type: Boolean,
+    default: false,
+    restricted: false,
+    onChange: async value => {
+      console.log('fa-token-browser | Show Duplicates setting changed:', value);
+      // Auto-refresh the browser when the setting changes
+      const existingApp = foundry.applications.instances.get('token-browser-app');
+      if (existingApp) {
+        console.log('fa-token-browser | Auto-refreshing Token Browser due to show duplicates change');
+
+        // Preserve search state before refresh
+        const currentSearchQuery = existingApp.searchManager?.searchQuery || '';
+
+        // Refresh the app
+        await existingApp.render(true);
+
+        // Restore search state after refresh
+        if (currentSearchQuery && existingApp.searchManager) {
+
+          const searchInput = existingApp.element?.querySelector('#token-search');
+          if (searchInput) {
+            searchInput.value = currentSearchQuery;
+            const wrapper = existingApp.element?.querySelector('.search-input-wrapper');
+            if (wrapper) {
+              wrapper.classList.add('has-text');
+            }
+            // Re-run the search with the restored query
+            existingApp.searchManager.performSearch(currentSearchQuery);
+          }
+        }
+      }
     }
   });
 
@@ -313,19 +388,62 @@ Hooks.once('init', async () => {
     }
   });
 
+  // Register local-only mode setting
+  game.settings.register('fa-token-browser', 'localOnlyMode', {
+    name: 'Local-Only Mode',
+    hint: 'Disable Cloud features for users who only want to use locally stored tokens.',
+    scope: 'client',
+    config: true,
+    type: Boolean,
+    default: false,
+    restricted: false,
+    onChange: async value => {
+      console.log('fa-token-browser | Local-Only Mode setting changed:', value);
+      // Auto-refresh the browser when the setting changes
+      const existingApp = foundry.applications.instances.get('token-browser-app');
+      if (existingApp) {
+        console.log('fa-token-browser | Auto-refreshing Token Browser due to local-only mode change');
+
+        // Preserve search state before refresh
+        const currentSearchQuery = existingApp.searchManager?.searchQuery || '';
+
+        // Refresh the app
+        await existingApp.render(true);
+
+        // Restore search state after refresh
+        if (currentSearchQuery && existingApp.searchManager) {
+
+          const searchInput = existingApp.element?.querySelector('#token-search');
+          if (searchInput) {
+            searchInput.value = currentSearchQuery;
+            const wrapper = existingApp.element?.querySelector('.search-input-wrapper');
+            if (wrapper) {
+              wrapper.classList.add('has-text');
+            }
+            // Re-run the search with the restored query
+            existingApp.searchManager.performSearch(currentSearchQuery);
+          }
+        }
+      }
+    }
+  });
+
 
   // Register Forge-specific settings
   ForgeIntegrationService.registerSettings();
 
-  // Register canvas drop handler hook (only once)
+    // Register canvas drop handler hook (only once)
   // Use Hooks.once to ensure it's only registered once even during dev reloads
   if (!window.faTokenBrowser.dropHandlerRegistered) {
     Hooks.on('dropCanvasData', async (canvas, data, event) => {
       return await TokenDragDropManager.handleCanvasDrop(canvas, data, event);
     });
     window.faTokenBrowser.dropHandlerRegistered = true;
-  
+
   }
+
+  // Initialize DSA5 scale restoration for supported systems
+  ActorFactory._initializeDSA5ScaleFix();
 
   // Setup canvas as drop zone when ready
   Hooks.once('canvasReady', () => {
@@ -373,7 +491,6 @@ Hooks.once('init', async () => {
       id: 'token-browser-app',
       tag: 'form',
       window: {
-        title: 'Token Browser',
         frame: true,
         positioned: true,
         resizable: true
@@ -393,9 +510,13 @@ Hooks.once('init', async () => {
     _initializeApplicationOptions(options) {
       // Get stored position from client settings
       const storedPosition = game.settings.get('fa-token-browser', 'tokenBrowserPosition') || {};
-      
+
       // Use stored position if available, otherwise use responsive defaults
       const defaultOptions = super._initializeApplicationOptions(options);
+
+      // Set dynamic title based on local-only mode
+      const localOnlyMode = game.settings.get('fa-token-browser', 'localOnlyMode') || false;
+      defaultOptions.window.title = localOnlyMode ? 'Local Token Browser' : 'Token Browser';
       
       // Validate and apply stored dimensions
       if (storedPosition.width && storedPosition.height) {
@@ -453,6 +574,11 @@ Hooks.once('init', async () => {
       if (this.dragDropManager) {
         this.dragDropManager.destroy();
       }
+      // Disconnect theme observer
+      if (this._themeObserver) {
+        try { this._themeObserver.disconnect(); } catch (e) {}
+        this._themeObserver = null;
+      }
       
       // Clean up preview manager
       if (this.previewManager) {
@@ -489,6 +615,10 @@ Hooks.once('init', async () => {
     _onRender(context, options) {
       super._onRender(context, options);
       
+      // Apply theme class according to setting
+      this._applyThemeMode();
+      this._observeHostThemeChanges();
+
       // Add custom header elements (Patreon auth and stats)
       this._enhanceHeader(context);
       
@@ -532,6 +662,59 @@ Hooks.once('init', async () => {
     }
 
 
+
+    /**
+     * Apply theme mode classes to the app root
+     */
+    _applyThemeMode() {
+      if (!this.element) return;
+      const mode = this._getHostTheme();
+      this.element.classList.remove('fa-theme-dark', 'fa-theme-light');
+      if (mode === 'dark') this.element.classList.add('fa-theme-dark');
+      if (mode === 'light') this.element.classList.add('fa-theme-light');
+      // Sync active variant panel if present
+      if (this._activeVariantPanel) {
+        this._activeVariantPanel.classList.remove('fa-theme-dark', 'fa-theme-light');
+        if (mode === 'dark') this._activeVariantPanel.classList.add('fa-theme-dark');
+        if (mode === 'light') this._activeVariantPanel.classList.add('fa-theme-light');
+      }
+    }
+
+    /**
+     * Inspect Foundry UI container to determine current Applications theme
+     * @returns {('dark'|'light')} current theme
+     */
+    _getHostTheme() {
+      try {
+        const apps = document.getElementById('ui-applications');
+        if (apps) {
+          if (apps.classList.contains('theme-dark')) return 'dark';
+          if (apps.classList.contains('theme-light')) return 'light';
+        }
+        // Fallback: check body classes
+        const body = document.body;
+        if (body.dataset && typeof body.dataset.theme === 'string') {
+          if (body.dataset.theme === 'dark') return 'dark';
+          if (body.dataset.theme === 'light') return 'light';
+        }
+        if (body.classList.contains('theme-dark')) return 'dark';
+        if (body.classList.contains('theme-light')) return 'light';
+      } catch (e) {}
+      return 'dark';
+    }
+
+    /**
+     * Observe host theme changes and re-apply our theme instantly
+     */
+    _observeHostThemeChanges() {
+      if (this._themeObserver) return; // already observing
+      try {
+        const callback = () => this._applyThemeMode();
+        const observer = new MutationObserver(callback);
+        observer.observe(document.body, { attributes: true, attributeFilter: ['class', 'data-theme'] });
+        this._themeObserver = observer;
+      } catch (e) {}
+    }
 
     /**
      * Enhance the window header with Patreon auth and token stats
@@ -603,11 +786,19 @@ Hooks.once('init', async () => {
 
       // Create title with stats
       const titleTextSpan = document.createElement('span');
-      titleTextSpan.textContent = 'Token Browser';
+      const localOnlyMode = game.settings.get('fa-token-browser', 'localOnlyMode') || false;
+      titleTextSpan.textContent = localOnlyMode ? 'Local Token Browser' : 'Token Browser';
       titleElement.appendChild(titleTextSpan);
 
-      // Add token stats if we have both cloud and local tokens
-      if (context.cloudTokenCount > 0 && context.localTokenCount >= 0) {
+      // Add token stats for both cloud and local-only modes
+      if (localOnlyMode && context.localTokenCount >= 0) {
+        // Show local-only stats
+        const statsSpan = document.createElement('span');
+        statsSpan.className = 'title-stats';
+        statsSpan.innerHTML = ` ( ${context.localTokenCount} local Tokens )`;
+        titleElement.appendChild(statsSpan);
+      } else if (!localOnlyMode && context.cloudTokenCount > 0 && context.localTokenCount >= 0) {
+        // Show combined cloud + local stats
         const statsSpan = document.createElement('span');
         statsSpan.className = 'title-stats';
         statsSpan.innerHTML = ` ( ${context.cloudTokenCount} <i class="fas fa-cloud title-cloud-icon"></i> + ${context.localTokenCount} local Tokens )`;
@@ -623,6 +814,12 @@ Hooks.once('init', async () => {
       const existingAuth = headerContent.querySelector('.header-patreon-auth');
       if (existingAuth) {
         existingAuth.remove();
+      }
+
+      // Skip Patreon auth UI in local-only mode
+      const localOnlyMode = game.settings.get('fa-token-browser', 'localOnlyMode') || false;
+      if (localOnlyMode) {
+        return;
       }
 
       const authContainer = document.createElement('div');
@@ -715,21 +912,42 @@ Hooks.once('init', async () => {
     async _prepareContext(options) {
       // Provide the manifest of images for the template
       try {
-        const customTokenFolder = game.settings.get('fa-token-browser', 'customTokenFolder') || '';
-        
+        // Parse folder configuration from JSON
+        const customTokenFoldersData = game.settings.get('fa-token-browser', 'customTokenFolders') || '[]';
+        let folderConfig = [];
+        try {
+          folderConfig = JSON.parse(customTokenFoldersData);
+          if (!Array.isArray(folderConfig)) {
+            folderConfig = [];
+          }
+        } catch (error) {
+          console.warn('fa-token-browser | Error parsing folder configuration:', error);
+          folderConfig = [];
+        }
+
+        // Extract folder paths and filter to only enabled folders
+        const allFolderPaths = folderConfig.map(folder => folder.path).filter(path => path && path.length > 0);
+        const customTokenFolders = this.tokenDataService.filterEnabledFolders(allFolderPaths);
+        const customTokenFoldersString = customTokenFolders.join(', ');
+
         // Update loading progress during initial load
         if (this._isInitialLoad) {
-          tokenBrowserLoader.updateText('Loading FA Token Browser...', 'Initializing local & cloud tokens...');
+          const localOnlyMode = game.settings.get('fa-token-browser', 'localOnlyMode') || false;
+          const loadingText = localOnlyMode ? 'Loading FA Token Browser...' : 'Loading FA Token Browser...';
+          const subText = localOnlyMode ? 'Initializing local tokens...' : 'Initializing local & cloud tokens...';
+          tokenBrowserLoader.updateText(loadingText, subText);
         }
-        
+
         // Check if loading was cancelled
         if (this._isInitialLoad && tokenBrowserLoader.wasCancelled()) {
           console.log('fa-token-browser | Data loading cancelled by user');
           throw new Error('Loading cancelled by user');
         }
-        
+
         // Get combined local and cloud tokens using TokenDataService
-        const combinedTokenData = await this.tokenDataService.getCombinedTokens(customTokenFolder, true);
+        // Respect local-only mode setting
+        const localOnlyMode = game.settings.get('fa-token-browser', 'localOnlyMode') || false;
+        const combinedTokenData = await this.tokenDataService.getCombinedTokens(customTokenFolders, !localOnlyMode);
         
         // Check again after potentially long cloud token fetch
         if (this._isInitialLoad && tokenBrowserLoader.wasCancelled()) {
@@ -739,11 +957,15 @@ Hooks.once('init', async () => {
         
         // Update loading progress
         if (this._isInitialLoad) {
-          tokenBrowserLoader.updateText('Loading FA Token Browser...', 'Processing token data...');
+          const localOnlyMode = game.settings.get('fa-token-browser', 'localOnlyMode') || false;
+          const loadingText = localOnlyMode ? 'Loading FA Token Browser...' : 'Loading FA Token Browser...';
+          const subText = localOnlyMode ? 'Processing local token data...' : 'Processing token data...';
+          tokenBrowserLoader.updateText(loadingText, subText);
         }
         
         // Convert TokenData to UI-compatible format for gradual migration
-        this._allImages = this.tokenDataService.convertTokenDataForUI(combinedTokenData);
+        const showDuplicates = game.settings.get('fa-token-browser', 'showDuplicates') || false;
+        this._allImages = this.tokenDataService.convertTokenDataForUI(combinedTokenData, showDuplicates);
         
         // Get images to display based on search state
         const imagesToDisplay = this.searchManager.getImagesToDisplay(this._allImages);
@@ -757,7 +979,12 @@ Hooks.once('init', async () => {
         
         // Update loading progress
         if (this._isInitialLoad) {
-          tokenBrowserLoader.updateText('FA Token Browser Ready!', `Found ${localCount} local and ${cloudCount} cloud tokens.`);
+          const localOnlyMode = game.settings.get('fa-token-browser', 'localOnlyMode') || false;
+          if (localOnlyMode) {
+            tokenBrowserLoader.updateText('FA Token Browser Ready!', `Found ${localCount} local tokens.`);
+          } else {
+            tokenBrowserLoader.updateText('FA Token Browser Ready!', `Found ${localCount} local and ${cloudCount} cloud tokens.`);
+          }
         }
         
         const searchContext = this.searchManager.getSearchContext();
@@ -770,9 +997,10 @@ Hooks.once('init', async () => {
         // Check if color variants are available (simplified logic)
         const hasColorVariants = this._hasColorVariantsAvailable();
         
-        return { 
+        return {
           images: this._displayedImages,
-          customTokenFolder,
+          customTokenFolders,
+          customTokenFoldersString,
           cloudTokenCount: cloudCount,
           localTokenCount: localCount,
           // Auth context for template
@@ -796,9 +1024,10 @@ Hooks.once('init', async () => {
           console.log('fa-token-browser | _prepareContext cancelled by user, skipping error display');
         }
         
-        return { 
+        return {
           images: [],
-          customTokenFolder: '',
+          customTokenFolders: [],
+          customTokenFoldersString: '',
           cloudTokenCount: 0,
           localTokenCount: 0,
           totalImages: 0,
@@ -1177,6 +1406,12 @@ Hooks.once('init', async () => {
       // Create variant panel
       const variantPanel = document.createElement('div');
       variantPanel.className = 'color-variants-panel';
+      // Propagate theme to variants panel
+      try {
+        const mode = this._getHostTheme();
+        if (mode === 'dark') variantPanel.classList.add('fa-theme-dark');
+        if (mode === 'light') variantPanel.classList.add('fa-theme-light');
+      } catch (e) {}
       variantPanel.innerHTML = `
         <div class="variant-header">
           <span class="variant-title">${baseNameWithoutVariant}</span>

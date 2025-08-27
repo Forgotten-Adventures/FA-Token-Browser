@@ -3,7 +3,7 @@
 A specialized token browser for Foundry VTT designed specifically for Forgotten Adventures tokens. Built around FA's token collection and cloud service, this module provides an easy and efficient way to browse, search, and use FA tokens directly in your Foundry VTT games.
 
 ![Foundry VTT v13](https://img.shields.io/badge/Foundry%20VTT-v13+-green)
-![Version](https://img.shields.io/badge/version-0.9.4-blue)
+![Version](https://img.shields.io/badge/version-0.9.5-blue)
 
 ![Image1](images/Foundry_Virtual_Tabletop_toEIdP8i6Y.png)
 
@@ -16,6 +16,14 @@ A specialized token browser for Foundry VTT designed specifically for Forgotten 
 - **Color Variants**: Browse and select from multiple color variants for each token
 - **Wildcard Tokens**: Download all color variants as wildcards for randomized token appearances
 - **Thumbnail Sizes**: Adjustable thumbnail sizes (small, medium, large) for optimal viewing
+- **Multiple Local Folders**: Configure multiple local token folders with enable/disable controls
+- **Smart Deduplication**: Automatically hide duplicate tokens (local/cloud) while preferring local versions
+- **Enhanced Thumbnails**: Local tokens display high-quality cloud thumbnails when duplicates exist
+
+### 🎨 **Adaptive Theming**
+- **Follows Foundry’s Applications theme**: Automatically matches Light/Dark selected in Foundry’s UI settings
+- **Scoped styles**: Uses isolated CSS variables to avoid conflicts with game systems that heavily restyle windows
+- **Live switching**: Changes theme instantly when you toggle Foundry’s theme; the variants panel follows too
 
 ### ☁️ **Cloud Integration**
 - **Free Tokens**: Immediate access to our complete gallery of our Free tokens with no additonal setup
@@ -71,7 +79,8 @@ https://github.com/user-attachments/assets/f371c6d2-922d-4237-9566-eb08c8c6cd18
 ## Requirements
 
 - **Foundry VTT**: Version 13 or higher
-- **Game Systems**: Tested with 5ednd, pf1 and pf2e
+- **Game Systems**: Tested with D&D 5e, Pathfinder 1e, Pathfinder 2e, DSA5/The Dark Eye, Black Flag, and Daggerheart
+- **Theming**: Works in both Light and Dark Applications themes; improved readability in light-only systems
 - **Internet Connection**: Required for cloud token access and Patreon authentication
 - **Patreon Account**: Required for premium token access (Adventurer tier $7+)
 
@@ -80,9 +89,12 @@ https://github.com/user-attachments/assets/f371c6d2-922d-4237-9566-eb08c8c6cd18
 ### Module Settings
 The module includes several configurable options accessible through Foundry VTT's module settings:
 
-- **Custom Token Folder**: Set a local storage folder from which to load tokens
-                            - You can technically load any tokens/images but FA Token Browser is expecting a
-                              certain filename standard for all it's funcionality. 
+- **Local Token Folders**: Configure multiple local folders containing token images
+  - Enable/disable individual folders as needed
+  - Custom labels for easy folder identification
+  - Smart deduplication prevents duplicate tokens from showing
+  * You can technically load  any tokens/images but the module is expecting a certain filename stnadard for all it's funcionality.
+- **Show Duplicates**: Choose whether to show duplicate tokens from different sources (default: disabled)
 - **Actor Creation Folder**: Set name of the folder where new actors (tokens dropped onto a scene) will be created.
 - **Large Previews**: Select to increase size of the hover previews (350px instead of 200px default)
 - **Token Cache Directory**: Directory where cloud tokens are cached(downloaded) locally on drag&drop or actor update.
@@ -96,8 +108,7 @@ Special optimizations are automatically applied for ForgeVTT environments:
 ### Support
 For additional support:
 - Check the [Issues page](https://github.com/Forgotten-Adventures/FA-Token-Browser/issues) for known problems
+- Check the [Changelog](CHANGELOG.md) for recent updates
 - Join the [Forgotten Adventures Discord](https://discord.gg/forgottenadventures) for community support
 
 **Made with ❤ by the Forgotten Adventures team** 
-
-This project’s code is MIT‑licensed. However, some content (e.g., token images/assets) is subject to Forgotten Adventures’ asset licensing terms—see [link](https://www.forgotten-adventures.net/copyright) for details.

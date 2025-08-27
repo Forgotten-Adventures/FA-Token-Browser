@@ -1506,7 +1506,7 @@ export class TokenDragDropManager {
       // Delay the transparency change slightly to allow drag to initiate properly
       setTimeout(() => {
         // Make window semi-transparent and non-interactive (like PF2e compendium browser)
-        browserWindow.style.opacity = '0.125';
+        browserWindow.style.opacity = '0.05';
         browserWindow.style.pointerEvents = 'none';
       }, 150); // 150ms delay allows drag to start properly
       
@@ -2129,6 +2129,15 @@ export class TokenDragDropManager {
         _onRender(context, options) {
           super._onRender(context, options);
           
+          // Apply FA theme class to dialog to match host theme
+          try {
+            const body = document.body;
+            const theme = (body.dataset && body.dataset.theme) ? body.dataset.theme : (body.classList.contains('theme-light') ? 'light' : 'dark');
+            this.element.classList.remove('fa-theme-dark', 'fa-theme-light');
+            if (theme === 'light') this.element.classList.add('fa-theme-light');
+            else this.element.classList.add('fa-theme-dark');
+          } catch (e) {}
+
           // Add event listeners using event delegation
           this.element.addEventListener('click', (event) => {
             const action = event.target.closest('[data-action]')?.getAttribute('data-action');

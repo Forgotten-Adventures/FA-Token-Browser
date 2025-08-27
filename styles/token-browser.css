@@ -1,10 +1,49 @@
 /* Token Browser Styles */
 
-/* Override ApplicationV2 window styling for better integration */
-
-#token-browser-app {
-  border-color: rgb(255 255 255 / 10%);
+/* Theme variables scoped to our app (dark defaults) */
+#token-browser-app, .color-variants-panel, #actor-token-update-dialog {
+  --fa-bg: rgba(10, 9, 17, 0.85);
+  --fa-bg-soft: rgba(10, 9, 17, 0.3);
+  --fa-panel: rgba(0, 0, 0, 0.76);
+  --fa-border: rgba(255, 255, 255, 0.1);
+  --fa-text: #eee;
+  --fa-text-muted: #999;
+  --fa-cloud: rgba(93, 169, 253, 0.6);
+  --fa-locked: #873b1f;
+  --fa-creature-type: rgba(215, 171, 0, 0.65);
+  --fa-scale: rgba(34, 197, 94, 0.5);
 }
+
+#token-browser-app.fa-theme-light, .color-variants-panel.fa-theme-light, #actor-token-update-dialog.fa-theme-light {
+  --fa-bg: rgba(255, 255, 255, 0.80);
+  --fa-bg-soft: rgba(0, 0, 0, 0.05);
+  --fa-panel: rgba(218, 216, 204, 0.76);
+  --fa-border: rgba(0, 0, 0, 0.15);
+  --fa-text: #222;
+  --fa-text-muted: #555;
+  --fa-cloud: #3b82f6;
+  --fa-locked: #873b1f;
+  --fa-creature-type: #9a7b00;
+  --fa-scale: #008330;
+}
+
+/* Light theme hover override for token items */
+#token-browser-app.fa-theme-light .token-item:hover {
+  border-color: rgba(0, 0, 0, 0.25);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.12);
+}
+
+/* Light theme title color override */
+#token-browser-app.fa-theme-light .window-title {
+  color: var(--fa-bg);
+}
+
+/* Light theme panel box shadow */
+.color-variants-panel.fa-theme-light {
+  box-shadow: 0 4px 20px rgba(0,0,0,0.25);
+}
+
+/* Override ApplicationV2 window styling for better integration */
 
 /* Only apply minimum size when window is not minimized */
 #token-browser-app:not(.minimized, .minimizing, .maximizing) {
@@ -13,8 +52,7 @@
 }
 
  #token-browser-app .window-header {
-  border-color: rgb(255 255 255 / 10%);
-  background: rgba(10, 9, 17, 0.85);
+  border-color: var(--fa-border);
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -28,7 +66,7 @@
 }
 
 #token-browser-app .window-title {
-  color: #999;
+  color: var(--fa-text-muted);
   font-weight: 600;
   display: flex;
   align-items: center;
@@ -131,8 +169,8 @@
   justify-content: space-between;
   gap: 0.75rem;
   padding: 0.2rem;
-  border-color: rgb(255 255 255 / 10%);
-  background: rgba(10, 9, 17, 0.3);
+  border-color: var(--fa-border);
+  background: var(--fa-bg-soft);
 }
 
 .auth-status-display[data-disconnect-handler="true"]:hover {
@@ -160,7 +198,7 @@
   left: 0.75rem;
   top: 50%;
   transform: translateY(-50%);
-  color: #999;
+  color: var(--fa-text-muted);
   font-size: 0.9em;
   pointer-events: none;
 }
@@ -170,7 +208,7 @@
   padding: 0.5rem 0.2rem 0.5rem 2.25rem;
   background: transparent;
   border-radius: 4px;
-  color: #eee;
+  /* color: #eee; */
   font-size: 0.9em;
   transition: all 0.2s ease;
   min-height: 36px;
@@ -183,7 +221,7 @@
 }
 
 #token-search::placeholder {
-  color: #999;
+  color: var(--fa-text-muted);
   opacity: 0.8;
 }
 
@@ -194,7 +232,7 @@
   transform: translateY(-50%);
   background: none;
   border: none;
-  color: #999;
+  color: var(--fa-text-muted);
   cursor: pointer;
   padding: 0.25rem;
   border-radius: 2px;
@@ -209,7 +247,7 @@
 }
 
 #token-browser-app .clear-search:hover {
-  color: #eee;
+  color: var(--fa-text);
 }
 
 .token-browser-controls {
@@ -220,7 +258,7 @@
 }
 
 .token-browser-stats {
-  color: #999;
+  color: var(--fa-text-muted);
   max-width: 105px;
   min-width: 80px;
   height: 1.8em;
@@ -253,14 +291,14 @@
   display: flex;
   align-items: center;
   cursor: pointer;
-  color: #999;
+  color: var(--fa-text-muted);
   font-size: 0.9em;
   transition: color 0.2s ease;
 }
 
 #token-browser-app .main-color-checkbox:hover,
 #token-browser-app .hide-locked-checkbox:hover {
-  color: #eee;
+  color: var(--fa-text);
 }
 
 #token-browser-app .main-color-checkbox.disabled {
@@ -282,7 +320,7 @@
 
 #token-browser-app .main-color-checkbox input[type="checkbox"]:checked::after,
 #token-browser-app .hide-locked-checkbox input[type="checkbox"]:checked::after {
-  color: #999;
+  color: var(--fa-text-muted);
   cursor: pointer;
   font-size: 17px;
 }
@@ -300,7 +338,7 @@
 
 /* Color Variants Panel */
 .color-variants-panel {
-  background: rgba(0, 0, 0, 0.76);
+  background: var(--fa-panel);
   position: fixed;
   border-radius: 4px;
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
@@ -329,7 +367,7 @@
 
 .color-variants-panel .variant-title {
   font-weight: bold;
-  color: #eee;
+  color: var(--fa-text);
   font-size: 0.9em;
   white-space: nowrap;
   overflow: hidden;
@@ -340,7 +378,7 @@
 .color-variants-panel .variant-close {
   background: none;
   border: none;
-  color: #999;
+  color: var(--fa-text-muted);
   font-size: 1.2em;
   cursor: pointer;
   padding: 0;
@@ -354,7 +392,7 @@
 }
 
 .color-variants-panel .variant-close:hover {
-  color: #eee;
+  color: var(--fa-text);
 }
 
 .color-variants-panel .variant-grid {
@@ -419,7 +457,7 @@
   outline: none;
   background: transparent;
   border-radius: 4px;
-  color: #999;
+  color: var(--fa-text-muted);
   font-size: 0.75em;
   min-width: 92px;
   transition: all 0.2s ease;
@@ -433,14 +471,14 @@
 
 #token-browser-app .sort-selector select:focus {
   outline: none;
-  color: #eee;
+  color: var(--fa-text);
   box-shadow: 0 0 0 2px rgba(109, 109, 109, 0.378);
 }
 
 
 #token-browser-app .sort-selector select option {
   background: rgb(20 20 35);
-  color: #999;
+  color: var(--fa-text-muted);
   padding: 4px 8px;
 }
 
@@ -453,7 +491,7 @@
 }
 
 #token-browser-app .thumbnail-size-selector label {
-  color: #999;
+  color: var(--fa-text-muted);
   font-size: 0.9em;
   white-space: nowrap;
   padding-right: 2px;
@@ -467,19 +505,19 @@
 #token-browser-app .size-btn {
   border: none;
   margin: -3px;
-  color: #999;
+  color: var(--fa-text-muted);
   transition: all 0.2s ease;
   background-color: transparent;
 }
 
 #token-browser-app .size-btn:hover {
-  color: #eee;
+  color: var(--fa-text);
   outline: none; 
   background-color: transparent;
 }
 
 #token-browser-app .size-btn:focus {
-  color: #eee;
+  color: var(--fa-text);
   outline: none; 
   background-color: transparent;
 }
@@ -570,8 +608,8 @@
   cursor: pointer;
   border-radius: 4px;
   overflow: hidden;
-  background: rgb(115 115 115 / 35%);
-  border: 1px solid rgba(255, 255, 255, 0.103);
+  background: rgba(115, 115, 115, 0.35);
+  border: 1px solid var(--fa-border);
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -653,7 +691,7 @@
 #token-browser-app .token-name {
   display: block;
   font-size: 1em;
-  color: #999;
+  color: var(--fa-text-muted);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -666,7 +704,7 @@
 }
 
 #token-browser-app .token-item:hover .token-name {
-  color: #eee;
+  color: var(--fa-text);
 }
 
 /* Token Variant (bottom right corner) */
@@ -691,7 +729,7 @@
 }
 
 #token-browser-app .token-size, #token-browser-app .token-scale, #token-browser-app .token-creature-type {
-  color: rgb(135 135 135 / 80%);
+  color: rgba(135, 135, 135, 0.8);
   padding: 0.1rem 0.2rem;
   font-weight: 500;
   overflow: hidden;
@@ -701,12 +739,12 @@
 }
 
 #token-browser-app .token-creature-type {
-  color: rgb(215 171 0 / 65%);
+  color: var(--fa-creature-type);
   text-overflow: clip;
 }
 
 #token-browser-app .token-scale {
-  color: rgba(34, 197, 94, 0.5);
+  color: var(--fa-scale);
 }
 
 
@@ -734,11 +772,12 @@
 }
 
 #token-browser-app .token-status-icon.free-cloud, .color-variants-panel .token-status-icon.free-cloud {
-  color: rgba(93, 169, 253, 0.4);
+  color: var(--fa-cloud);
+  opacity: 0.6;
 }
 
 #token-browser-app .token-status-icon.premium-cloud, .color-variants-panel .token-status-icon.premium-cloud {
-  color: rgba(93, 169, 253, 0.6);
+  color: var(--fa-cloud);
 }
 
 #token-browser-app .token-status-icon.cached-cloud, .color-variants-panel .token-status-icon.cached-cloud {
@@ -749,7 +788,7 @@
 #token-browser-app .token-item.locked-token, .color-variants-panel .token-item.locked-token {
   position: relative;
   cursor: not-allowed !important;
-  background: rgb(75 75 75 / 35%);
+  background: rgba(75, 75, 75, 0.35);
 }
 
 #token-browser-app .token-item.locked-token .token-thumbnail, .color-variants-panel .token-item.locked-token .token-thumbnail {
@@ -766,19 +805,293 @@
 }
 
 #token-browser-app .token-status-icon.locked, .color-variants-panel .token-status-icon.locked {
-  color: #873b1f;
+  color: var(--fa-locked);
 }
 
 /* Empty State */
 #token-browser-app .token-empty-state {
   text-align: center;
   padding: 2rem;
-  color: #999;
+  color: var(--fa-text-muted);
   border-radius: 6px;
 }
 
 #token-browser-app .token-empty-state p {
   margin: 0.5rem 0;
+}
+
+#token-browser-app .token-empty-state p strong {
+  color: var(--fa-text);
+  font-weight: 600;
+}
+
+/* FA Token Browser - Folder Selection Dialog Styles */
+.fa-token-browser-folder-selection-dialog {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  padding: 20px;
+  gap: 20px;
+}
+
+.fa-token-browser-folder-selection-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 20px;
+  margin-bottom: 10px;
+}
+
+.fa-token-browser-folder-selection-header p {
+  margin: 0;
+  color: var(--fa-text-muted);
+  font-size: 14px;
+  line-height: 1.4;
+  flex: 1;
+}
+
+.fa-token-browser-add-folder-button {
+  background: #4CAF50;
+  color: white;
+  border: none;
+  padding: 8px 16px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 14px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  white-space: nowrap;
+}
+
+.fa-token-browser-add-folder-button:hover {
+  background: #45a049;
+}
+
+.fa-token-browser-folder-list {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  border: 1px solid #444;
+  border-radius: 6px;
+  background: var(--fa-bg-soft);
+}
+
+.fa-token-browser-folder-list-header {
+  padding: 12px 16px;
+  border-bottom: 1px solid #444;
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.fa-token-browser-folder-count {
+  color: var(--fa-text);
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.fa-token-browser-folder-items {
+  flex: 1;
+  overflow-y: auto;
+  padding: 8px;
+}
+
+.fa-token-browser-folder-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 12px;
+  border: 1px solid var(--fa-border);
+  border-radius: 6px;
+  background: var(--fa-bg-soft);
+  margin-bottom: 8px;
+}
+
+.fa-token-browser-folder-item:hover {
+  background: var(--fa-bg-soft);
+  border-color: var(--fa-border);
+  opacity: 1.2;
+}
+
+.fa-token-browser-folder-content {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-width: 0;
+}
+
+.fa-token-browser-folder-info {
+  flex: 1;
+  min-width: 0;
+  margin-right: 15px;
+}
+
+.fa-token-browser-folder-label {
+  font-weight: 600;
+  color: var(--fa-text);
+  margin-bottom: 4px;
+  word-break: break-all;
+}
+
+.fa-token-browser-folder-path {
+  font-size: 12px;
+  color: var(--fa-text-muted);
+  font-family: monospace;
+  word-break: break-all;
+}
+
+.fa-token-browser-folder-actions {
+  display: flex;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.fa-token-browser-folder-item button {
+  background: none;
+  border: none;
+  color: var(--fa-text-muted);
+  cursor: pointer;
+  padding: 6px;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+}
+
+.fa-token-browser-folder-item button:hover {
+  background: var(--fa-bg-soft);
+  color: var(--fa-text);
+}
+
+.fa-token-browser-edit-folder-btn {
+  color: #4CAF50;
+}
+
+.fa-token-browser-edit-folder-btn:hover {
+  color: #45a049;
+  background: rgba(76, 175, 80, 0.1);
+}
+
+.fa-token-browser-remove-folder-btn {
+  color: #f44336;
+}
+
+.fa-token-browser-remove-folder-btn:hover {
+  color: #d32f2f;
+  background: rgba(244, 67, 54, 0.1);
+}
+
+.fa-token-browser-no-folders-message {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 40px 20px;
+  color: var(--fa-text-muted);
+}
+
+.fa-token-browser-no-folders-message i {
+  font-size: 48px;
+  margin-bottom: 16px;
+  opacity: 0.5;
+}
+
+.fa-token-browser-no-folders-message p {
+  margin: 8px 0;
+  font-size: 16px;
+}
+
+.fa-token-browser-folder-selection-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  padding-top: 20px;
+  border-top: 1px solid var(--fa-border);
+}
+
+.fa-token-browser-folder-selection-footer button {
+  padding: 8px 16px;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 14px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.fa-token-browser-cancel-button {
+  background: #666;
+  color: white;
+}
+
+.fa-token-browser-cancel-button:hover {
+  background: #555;
+}
+
+.fa-token-browser-save-button {
+  background: #4CAF50;
+  color: white;
+}
+
+.fa-token-browser-save-button:hover {
+  background: #45a049;
+}
+
+/* Folder Enable/Disable Checkbox */
+.fa-token-browser-folder-enable {
+  display: flex;
+  align-items: center;
+  margin-right: 8px;
+}
+
+.fa-token-browser-folder-checkbox {
+  margin: 0;
+  cursor: pointer;
+}
+
+.fa-token-browser-folder-disabled {
+  opacity: 0.5;
+  background: var(--fa-bg-soft) !important;
+}
+
+.fa-token-browser-folder-disabled .fa-token-browser-folder-label {
+  text-decoration: line-through;
+  color: var(--fa-text-muted);
+  opacity: 0.6;
+}
+
+/* Folder Label Editing */
+.fa-token-browser-folder-label {
+  cursor: pointer;
+  user-select: none;
+  transition: background-color 0.2s ease;
+}
+
+.fa-token-browser-folder-label:hover {
+  background: var(--fa-bg-soft);
+  border-radius: 4px;
+}
+
+.fa-token-browser-folder-label-input {
+  background: var(--fa-text);
+  color: var(--fa-bg);
+  border: 1px solid var(--fa-border);
+  border-radius: 4px;
+  padding: 2px 4px;
+  font-size: 14px;
+  width: 100%;
+  max-width: 200px;
+}
+
+.fa-token-browser-folder-label-input:focus {
+  outline: none;
+  border-color: #4CAF50;
+  box-shadow: 0 0 0 2px rgba(76, 175, 80, 0.2);
 }
 
 /* Empty Search State */
@@ -790,7 +1103,7 @@
 #token-browser-app .empty-search-state {
   text-align: center;
   padding: 3rem 2rem;
-  color: #999;
+  color: var(--fa-text-muted);
   border-radius: 6px;
 }
 
@@ -806,7 +1119,7 @@
 }
 
 #token-browser-app .empty-search-state strong {
-  color: #eee;
+  color: var(--fa-text);
 }
 
 /* Responsive Design */
@@ -971,7 +1284,7 @@
 
 .token-hover-preview .preview-filename {
   font-weight: bold;
-  color: #eee;
+  color: var(--fa-text);
   font-size: 0.9em;
   margin-bottom: 0.25rem;
   word-break: break-word;
@@ -979,7 +1292,7 @@
 }
 
 .token-hover-preview .preview-path {
-  color: #999;
+  color: var(--fa-text-muted);
   font-size: 0.75em;
   opacity: 0.8;
   word-break: break-all;
@@ -987,11 +1300,11 @@
 }
 
 .token-hover-preview .preview-dimensions {
-  color: #aaa;
+  color: var(--fa-text-muted);
   font-size: 0.7em;
   margin-top: 0.25rem;
   padding-top: 0.25rem;
-  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  border-top: 1px solid var(--fa-border);
   text-align: center;
   font-family: monospace;
 }
@@ -1043,7 +1356,8 @@
 }
 
 #token-browser-app .skeleton-icon {
-  color: rgba(255, 255, 255, 0.3);
+  color: var(--fa-text-muted);
+  opacity: 0.3;
   font-size: 1.5em;
   z-index: 1;
 }
@@ -1124,7 +1438,7 @@
 
 #fa-token-browser-loading .loading-content {
   background: rgba(10, 9, 17, 0.85);
-  border: 2px solid rgb(255 255 255 / 10%);
+  border: 2px solid rgba(255, 255, 255, 0.1);
   border-radius: 4px;
   padding: 3px;
   text-align: center;
@@ -1141,7 +1455,7 @@
 
 #fa-token-browser-loading .loading-spinner {
   font-size: 1.5rem;
-  color: #999;
+  color: var(--fa-text-muted);
   flex-shrink: 0;
 }
 
@@ -1151,7 +1465,7 @@
 
 #fa-token-browser-loading .loading-cancel {
   background: transparent;
-  color: #999;
+  color: var(--fa-text-muted);
   border: none;
   cursor: pointer;
   font-size: 1rem;
@@ -1162,20 +1476,20 @@
 
 #fa-token-browser-loading .loading-cancel:hover {
   border: none;
-  color: #eee;
+  color: var(--fa-text);
 }
 
 #fa-token-browser-loading .loading-text {
   font-size: 1.1rem;
   font-weight: 600;
-  color: #eee;
+  color: var(--fa-text);
   margin-bottom: 8px;
   margin-top: -18px;
 }
 
 #fa-token-browser-loading .loading-subtext {
   font-size: 0.9rem;
-  color: #999;
+  color: var(--fa-text-muted);
   opacity: 0.9;
   line-height: 1.3;
   margin-bottom: 20px;
@@ -1216,10 +1530,10 @@
 #actor-token-update-dialog {
   padding: 0;
   max-width: 500px;
-  background: rgba(10, 9, 17, 0.85);
-  color: #999;
+  /* background: var(--fa-bg); */
+  color: var(--fa-text-muted);
   border-radius: 8px;
-  border: 1px solid rgb(255 255 255 / 10%);
+  /* border: 1px solid var(--fa-border); */
   backdrop-filter: blur(5px);
 }
 
@@ -1231,7 +1545,7 @@
 #actor-token-update-dialog .confirmation-message {
   margin-bottom: 20px;
   text-align: center;
-  color: #eee;
+  color: var(--fa-text);
 }
 
 #actor-token-update-dialog .confirmation-message p {
@@ -1247,10 +1561,10 @@
   gap: 20px;
   margin-bottom: 20px;
   justify-content: center;
-  background: rgb(115 115 115 / 35%);
+  background: rgba(115, 115, 115, 0.35);
   padding: 20px;
   border-radius: 6px;
-  border: 1px solid rgba(255, 255, 255, 0.103);
+  border: 1px solid var(--fa-border);
 }
 
 #actor-token-update-dialog .token-preview {
@@ -1265,7 +1579,7 @@
   margin-bottom: 12px;
   font-weight: 600;
   font-size: 14px;
-  color: #eee;
+  color: var(--fa-text);
 }
 
 #actor-token-update-dialog .token-image {
@@ -1279,7 +1593,7 @@
   margin-bottom: 20px;
   padding: 15px;
   border-radius: 6px;
-  border: 1px solid rgba(255, 255, 255, 0.103);
+  border: 1px solid var(--fa-border);
   text-align: center;
 }
 
@@ -1289,12 +1603,12 @@
   gap: 8px;
   cursor: pointer;
   font-size: 14px;
-  color: #999;
+  color: var(--fa-text-muted);
   user-select: none;
 }
 
 #actor-token-update-dialog .checkbox-label:hover {
-  color: #eee;
+  color: var(--fa-text);
 }
 
 #actor-token-update-dialog .checkbox-label input[type="checkbox"] {
@@ -1306,7 +1620,7 @@
 #actor-token-update-dialog .token-details {
   display: contents;
   font-size: 0.9em;
-  color: #999;
+  color: var(--fa-text-muted);
 }
 
 #actor-token-update-dialog .detail-row {
@@ -1322,7 +1636,7 @@
 }
 
 #actor-token-update-dialog .detail-row strong {
-  color: #eee;
+  color: var(--fa-text);
   display: inline-block;
   min-width: 50px;
 }
@@ -1333,7 +1647,7 @@
   justify-content: center;
   margin-top: 25px;
   padding-top: 15px;
-  border-top: 1px solid rgba(255, 255, 255, 0.15);
+  border-top: 1px solid var(--fa-border);
 }
 
 #actor-token-update-dialog .dialog-buttons button {
@@ -1352,15 +1666,15 @@
 }
 
 #actor-token-update-dialog .cancel-btn {
-  background: rgb(115 115 115 / 35%);
-  color: #999;
-  border: 1px solid rgba(255, 255, 255, 0.2);
+  background: rgba(115, 115, 115, 0.35);
+  color: var(--fa-text-muted);
+  border: 1px solid var(--fa-border);
 }
 
 #actor-token-update-dialog .cancel-btn:hover {
-  background: rgb(115 115 115 / 50%);
-  border-color: rgba(255, 255, 255, 0.33);
-  color: #eee;
+  background: rgba(115, 115, 115, 0.5);
+  border-color: var(--fa-border);
+  color: var(--fa-text);
   transform: translateY(-1px);
 }
 
@@ -1384,13 +1698,13 @@
 
 /* Title bar styling to match Token Browser */
 #actor-token-update-dialog .window-header {
-  background: rgba(10, 9, 17, 0.85);
-  border-bottom: 1px solid rgb(255 255 255 / 10%);
-  border-color: rgb(255 255 255 / 10%);
-  color: #999;
+  /* background: var(--fa-bg); */
+  border-bottom: 1px solid var(--fa-border);
+  border-color: var(--fa-border);
+  color: var(--fa-text-muted);
 }
 
 #actor-token-update-dialog .window-title {
-  color: #999;
+  /* color: var(--fa-text-muted); */
   font-weight: 600;
 }
