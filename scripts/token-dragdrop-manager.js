@@ -2297,6 +2297,17 @@ export class TokenDragDropManager {
       });
       
       console.log(`fa-token-browser | D&D 5e Actor Update: Set size to "${sizeCategory}" (${tokenSize.gridWidth}x${tokenSize.gridHeight}) for ${actor.name}`);
+      
+    } else if (systemInfo.id === 'dsa5') {
+      // For DSA5, handle creature size relationship
+      const sizeCategory = ActorFactory._getCreatureSizeFromGridDimensions(tokenSize.gridWidth, tokenSize.gridHeight);
+      
+      // Update actor's size status to match token dimensions
+      await actor.update({
+        'system.status.size.value': sizeCategory
+      });
+      
+      console.log(`fa-token-browser | DSA5 Actor Update: Set size to "${sizeCategory}" (${tokenSize.gridWidth}x${tokenSize.gridHeight}) for ${actor.name}`);
     }
     
     // Prepare actor update data (conditionally update actor image)

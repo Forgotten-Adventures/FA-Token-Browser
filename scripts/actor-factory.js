@@ -639,17 +639,31 @@ export class ActorFactory {
    */
   static _getCreatureSizeFromGridDimensions(gridWidth, gridHeight) {
     // Use the larger dimension to determine size category
-    // Maps to DSA5's actual size values: tiny, small, average, big, giant
     const maxDimension = Math.max(gridWidth, gridHeight);
 
-    if (maxDimension >= 4) {
-      return 'giant';  // Gargantuan (4x4 or larger) -> Giant
-    } else if (maxDimension >= 3) {
-      return 'giant';  // Huge (3x3) -> Giant
-    } else if (maxDimension >= 2) {
-      return 'big';    // Large (2x2) -> Big
+    // Check current system to use appropriate size values
+    if (game.system.id === 'dsa5') {
+      // DSA5's size values: tiny, small, average, big, giant
+      if (maxDimension >= 4) {
+        return 'giant';  // Gargantuan (4x4 or larger) -> Giant
+      } else if (maxDimension >= 3) {
+        return 'giant';  // Huge (3x3) -> Giant
+      } else if (maxDimension >= 2) {
+        return 'big';    // Large (2x2) -> Big
+      } else {
+        return 'average'; // Medium and smaller (1x1) -> Average
+      }
     } else {
-      return 'average'; // Medium and smaller (1x1) -> Average
+      // D&D 5e and other systems use: tiny, sm, med, lg, huge, grg
+      if (maxDimension >= 4) {
+        return 'grg';    // Gargantuan (4x4 or larger)
+      } else if (maxDimension >= 3) {
+        return 'huge';   // Huge (3x3)
+      } else if (maxDimension >= 2) {
+        return 'lg';     // Large (2x2)
+      } else {
+        return 'med';    // Medium and smaller (1x1)
+      }
     }
   }
   
@@ -720,16 +734,7 @@ export class ActorFactory {
       }
     };
 
-    // Additional protection for DSA5: Ensure scale is preserved in final token data
-    if (game.system.id === 'dsa5' && actor.getFlag('fa-token-browser', 'customScale')) {
-      const originalScale = actor.getFlag('fa-token-browser', 'originalScale');
-      if (originalScale) {
-        baseTokenData.texture.scaleX = originalScale;
-        baseTokenData.texture.scaleY = originalScale;
-        // Also set the overall token scale as backup
-        baseTokenData.scale = originalScale;
-      }
-    }
+ 
     
     // Apply prototype token overrides from the actor and global settings
     const tokenData = this._applyPrototypeTokenOverrides(actor, baseTokenData);

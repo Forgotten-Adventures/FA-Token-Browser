@@ -2,6 +2,19 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.9.6] - 2025-08-28
+
+Bug fixing for dnd5e caused by 0.9.5
+
+Note to self: Do not push updates at 1am
+
+### Fixed
+
+* Fixed D&D 5e actor update errors when dropping tokens on existing actors
+* Fixed canvas drag & drop scaling/size issues for D&D 5e system
+* Fixed creature size category mapping to use correct values for each game system
+* Added DSA5 actor size update support (system.status.size.value) when updating existing actors
+
 ## [0.9.5] - 2025-08-28
 
 ### Added
