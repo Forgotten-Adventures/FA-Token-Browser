@@ -404,6 +404,8 @@
   overflow-y: auto;
 }
 
+
+
 .color-variants-panel .variant-item {
   padding: 0.5rem;
   height: auto;
@@ -870,6 +872,7 @@
 
 .fa-token-browser-folder-list {
   flex: 1;
+  min-height: 0; /* allow list to shrink so inner scroller works */
   display: flex;
   flex-direction: column;
   border: 1px solid #444;
@@ -891,6 +894,7 @@
 
 .fa-token-browser-folder-items {
   flex: 1;
+  min-height: 0; /* ensure content can scroll within flex parent */
   overflow-y: auto;
   padding: 8px;
 }

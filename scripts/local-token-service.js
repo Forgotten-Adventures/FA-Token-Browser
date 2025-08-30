@@ -5,6 +5,7 @@
 
 import { parseTokenSize } from './geometry.js';
 import { createTokenData, TOKEN_SOURCES } from './token-data-types.js';
+import { forgeIntegration } from './forge-integration.js';
 
 export class LocalTokenService {
   constructor() {
@@ -26,13 +27,79 @@ export class LocalTokenService {
     const exts = ['.png', '.jpg', '.jpeg', '.webp'];
     const FilePickerImpl = foundry.applications.apps.FilePicker.implementation;
 
+    // Determine the correct FilePicker source and target path from the provided folder string
+    const resolveSourceAndPath = (folderPath) => {
+      let source = 'data';
+      let target = folderPath;
+      let options = {};
+
+      if (!folderPath) return { source, target, options };
+
+      // Normalize any "data:" prefix
+      if (folderPath.startsWith('data:')) {
+        target = folderPath.slice('data:'.length);
+        return { source, target, options };
+      }
+
+      // Handle explicit protocol prefixes
+      if (folderPath.startsWith('forgevtt:')) {
+        source = 'forgevtt';
+        target = folderPath.slice('forgevtt:'.length);
+        options = forgeIntegration.getBucketOptions();
+        return { source, target, options };
+      }
+      if (folderPath.startsWith('forge-bazaar:') || folderPath.startsWith('bazaar:')) {
+        source = 'forge-bazaar';
+        target = folderPath.replace(/^[^:]+:/, '');
+        return { source, target, options };
+      }
+
+      // Handle Forge assets URLs
+      const bazaarRe = /^https?:\/\/assets\.forge-vtt\.com\/bazaar\/assets\/(.+)$/i;
+      const assetsRe = /^https?:\/\/assets\.forge-vtt\.com\/[^\/]+\/(.+)$/i; // accountId/<path>
+
+      if (bazaarRe.test(folderPath)) {
+        source = 'forge-bazaar';
+        target = folderPath.replace(bazaarRe, 'assets/$1');
+        return { source, target, options };
+      }
+
+      if (assetsRe.test(folderPath)) {
+        source = 'forgevtt';
+        target = folderPath.replace(assetsRe, '$1');
+        options = forgeIntegration.getBucketOptions();
+        return { source, target, options };
+      }
+
+      // Remove any leading slash to keep relative to source root
+      if (target.startsWith('/')) target = target.slice(1);
+      return { source, target, options };
+    };
+
+    const envDefaultSource = forgeIntegration.isRunningOnForge() ? 'forgevtt' : 'data';
+    const resolved = resolveSourceAndPath(folder);
+    const source = resolved.source || envDefaultSource;
+    const target = resolved.target;
+    const options = resolved.options || (source === 'forgevtt' ? forgeIntegration.getBucketOptions() : {});
+
     async function recurse(path) {
       let result;
       try {
-        result = await FilePickerImpl.browse('data', path);
+        result = await FilePickerImpl.browse(source, path, options);
       } catch (err) {
-        console.warn(`fa-token-browser | Error reading folder: ${path}`, err);
-        return;
+        // Fallbacks: try alternate Forge sources if the first attempt fails
+        try {
+          if (source === 'forge-bazaar') {
+            result = await FilePickerImpl.browse('bazaar', path, options);
+          } else if (source === 'forgevtt') {
+            result = await FilePickerImpl.browse('data', path);
+          } else {
+            throw err;
+          }
+        } catch (err2) {
+          console.warn(`fa-token-browser | Error reading folder (${source}:${path})`, err2);
+          return;
+        }
       }
       for (const file of result.files) {
         const ext = file.split('.').pop().toLowerCase();
@@ -43,14 +110,14 @@ export class LocalTokenService {
             url: file,
             fullUrl: file,
             type: ext,
-            source: 'local' // Mark as local token
+            source: 'local' // Treat as local in the unified model
           });
         }
       }
       for (const dir of result.dirs) await recurse(dir);
     }
 
-    await recurse(folder);
+    await recurse(target);
     return manifest;
   }
 

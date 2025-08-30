@@ -2,6 +2,17 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.9.61] - 2025-08-30
+
+### Changed
+
+* Folder Selection: Annotate Bazaar sources; default sources (data/forgevtt) are implied by environment
+
+### Fixed
+
+* The Forge Assets & Bazaar folders now show up and resolve correctly in folder selection config
+* UI: Folder list is now scrollable with a persistent footer so Save/Cancel remain visible
+
 ## [0.9.6] - 2025-08-28
 
 Bug fixing for dnd5e caused by 0.9.5

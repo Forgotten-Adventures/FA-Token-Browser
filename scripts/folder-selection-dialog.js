@@ -254,10 +254,23 @@ export class FolderSelectionDialog extends HandlebarsApplicationMixin(foundry.ap
    * Add a new folder
    */
   async _addFolder() {
-    const filePicker = new foundry.applications.apps.FilePicker({
+    const FilePickerClass = globalThis.FilePicker || foundry.applications.apps.FilePicker;
+    const filePicker = new FilePickerClass({
       type: 'folder',
       title: 'Select Token Folder',
       callback: (path) => {
+        try {
+          const activeSource = filePicker?.activeSource;
+          // Prefix only for Bazaar; default sources (data/forgevtt) are implied by environment
+          if (activeSource && (activeSource === 'forge-bazaar' || activeSource === 'bazaar') && !/^[^:]+:/.test(path)) {
+            // Normalize by trimming any leading slash
+            const normalized = path.startsWith('/') ? path.slice(1) : path;
+            const source = activeSource === 'bazaar' ? 'forge-bazaar' : activeSource;
+            path = `${source}:${normalized}`;
+          }
+        } catch (e) {
+          // Non-fatal; keep original path
+        }
         const folderName = path.split('/').pop() || path;
         this.selectedFolders.push({
           path: path,
@@ -343,10 +356,19 @@ export class FolderSelectionDialog extends HandlebarsApplicationMixin(foundry.ap
     const currentFolder = this.selectedFolders[index];
     if (!currentFolder) return;
 
-    const filePicker = new foundry.applications.apps.FilePicker({
+    const FilePickerClass = globalThis.FilePicker || foundry.applications.apps.FilePicker;
+    const filePicker = new FilePickerClass({
       type: 'folder',
       title: 'Select Token Folder',
       callback: (path) => {
+        try {
+          const activeSource = filePicker?.activeSource;
+          if (activeSource && (activeSource === 'forge-bazaar' || activeSource === 'bazaar') && !/^[^:]+:/.test(path)) {
+            const normalized = path.startsWith('/') ? path.slice(1) : path;
+            const source = activeSource === 'bazaar' ? 'forge-bazaar' : activeSource;
+            path = `${source}:${normalized}`;
+          }
+        } catch (e) {}
         const folderName = path.split('/').pop() || path;
         this.selectedFolders[index] = {
           path: path,
