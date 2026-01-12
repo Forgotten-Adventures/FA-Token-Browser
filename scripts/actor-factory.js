@@ -226,6 +226,8 @@ export class ActorFactory {
         return this._enhanceForBlackFlag(actorData, actorType, dragData);
       case 'daggerheart':
         return this._enhanceForDaggerheart(actorData, actorType, dragData);
+      case 'shadowdark':
+        return this._enhanceForShadowdark(actorData, actorType, dragData);
       default:
         return actorData; // Keep minimal data for unknown systems
     }
@@ -628,6 +630,67 @@ export class ActorFactory {
     }
 
     console.log(`fa-token-browser | Daggerheart: Created ${actorType} with size category "${sizeCategory}" (${gridWidth}x${gridHeight}) for ${actorData.name}`);
+    return actorData;
+  }
+
+  /**
+   * Enhance actor data for Shadowdark RPG system
+   * @param {Object} actorData - Base actor data
+   * @param {string} actorType - Actor type
+   * @param {Object} dragData - Drag data
+   * @returns {Object} Enhanced actor data
+   */
+  static _enhanceForShadowdark(actorData, actorType, dragData) {
+    // Normalize the target type to Shadowdark’s canonical types
+    const at = (actorType || '').toLowerCase();
+    const isPlayer = ['player', 'pc', 'character'].includes(at);
+    const sdType = isPlayer ? 'Player' : 'NPC';
+
+    // Ensure a valid Shadowdark actor type
+    actorData.type = sdType;
+
+    // Ensure a minimal, safe actor.system exists if absent
+    actorData.system = actorData.system || {};
+
+    // Keep actor art aligned with the dropped token if none was set by the base builder
+    if (!actorData.img && dragData?.url) {
+      actorData.img = dragData.url;
+    }
+
+    // Respect Shadowdark’s token defaults but keep the size/scale optimization
+    const { gridWidth, gridHeight, scale } = dragData.tokenSize;
+    actorData.prototypeToken = actorData.prototypeToken || {};
+
+    // Width/Height come from calculated size (already optimized for giant tokens)
+    actorData.prototypeToken.width = gridWidth;
+    actorData.prototypeToken.height = gridHeight;
+
+    // Texture – ensure our scale is preserved
+    actorData.prototypeToken.texture = {
+      ...(actorData.prototypeToken.texture || {}),
+      src: dragData.url,
+      scaleX: scale,
+      scaleY: scale,
+      // If gargantuan optimizer already set a fit mode upstream, keep it.
+      fit: actorData.prototypeToken.texture?.fit || undefined,
+    };
+
+    // Shadowdark’s linking & vision defaults per ActorSD._preCreate
+    if (sdType === 'Player') {
+      actorData.prototypeToken.actorLink = true;
+      actorData.prototypeToken.sight = {
+        ...(actorData.prototypeToken.sight || {}),
+        enabled: true,
+      };
+    } else {
+      actorData.prototypeToken.actorLink = false;
+      actorData.prototypeToken.sight = {
+        ...(actorData.prototypeToken.sight || {}),
+        enabled: false,
+      };
+    }
+
+    console.log(`fa-token-browser | Shadowdark: Created ${sdType} for ${actorData.name} (${gridWidth}x${gridHeight}) @ ${scale}x`);
     return actorData;
   }
 
